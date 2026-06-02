@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Bitso Adapter",
+  "version": "1.0.0",
+  "description": "Paga en tiendas con tu cripto de Bitso",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.mercadolibre.com.mx/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.mercadolibre.com.mx/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
