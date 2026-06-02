@@ -6,7 +6,9 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "notifications",
+    "tabs"
   ],
   "host_permissions": [
     "https://*.mercadolibre.com.mx/*",

@@ -6,14 +6,21 @@
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "notifications",
+    "tabs"
   ],
   "host_permissions": [
     "https://*.mercadolibre.com.mx/*",
     "http://localhost:3000/*"
   ],
   "action": {
-    "default_popup": "index.html"
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "content_scripts": [
     {
