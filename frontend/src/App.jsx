@@ -70,13 +70,15 @@ function Login({ onLogin }) {
 
     setCargando(true)
     try {
-      // Verificar keys contra Bitso antes de guardar
+      console.log('Intentando conectar con backend...')
       const res = await fetch('http://localhost:3000/verificar-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret })
       })
+      console.log('Respuesta del backend:', res.status)
       const data = await res.json()
+      console.log('Data:', data)
 
       if (!data.valido) {
         setError('API Key o Secret inválidos — verifica tus credenciales')
@@ -84,7 +86,6 @@ function Login({ onLogin }) {
         return
       }
 
-      // Keys válidas — cifrar y guardar
       const keyCifrada = await cifrarTexto(apiKey, pin)
       const secretCifrado = await cifrarTexto(apiSecret, pin)
 
@@ -98,6 +99,7 @@ function Login({ onLogin }) {
       })
 
     } catch (err) {
+      console.error('Error completo:', err)
       setError('No se pudo conectar con el servidor')
       setCargando(false)
     }
@@ -154,6 +156,32 @@ function Login({ onLogin }) {
 }
 
 function Dashboard({ onLogout }) {
+  const [balances, setBalances] = useState([])
+  const [speiData, setSpeiData] = useState(null)
+
+  useEffect(() => {
+    chrome.storage.local.get(['balances', 'speiData', 'speiPending'], (result) => {
+      if (result.balances) {
+        const conSaldo = result.balances.filter(b => parseFloat(b.available) > 0)
+        setBalances(conSaldo)
+      }
+      if (result.speiPending && result.speiData) {
+        setSpeiData(result.speiData)
+      }
+    })
+  }, [])
+
+  if (speiData) {
+    return <ResumenPago datos={speiData} balances={balances} onCancelar={() => {
+      chrome.storage.local.remove(['speiData', 'speiPending'])
+      chrome.action.setBadgeText({ text: '' })
+      setSpeiData(null)
+    }} />
+  }
+
+  const saldoMXN = balances.find(b => b.currency === 'mxn')
+  const otrasMonedas = balances.filter(b => b.currency !== 'mxn')
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -162,10 +190,29 @@ function Dashboard({ onLogout }) {
       </div>
 
       <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-        <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 4px 0' }}>Balance disponible</p>
-        <p style={{ fontSize: '26px', fontWeight: 'bold', margin: '0 0 4px 0' }}>$1,580.00 MXN</p>
-        <p style={{ color: '#aaaaaa', fontSize: '13px', margin: 0 }}>0.023 BTC</p>
+        <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 8px 0' }}>Saldo MXN</p>
+        <p style={{ fontSize: '26px', fontWeight: 'bold', margin: '0' }}>
+          ${saldoMXN ? parseFloat(saldoMXN.available).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'} MXN
+        </p>
       </div>
+
+      {otrasMonedas.length > 0 && (
+        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
+          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 12px 0' }}>Otras criptomonedas</p>
+          {otrasMonedas.map(b => (
+            <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ color: '#ffffff', fontSize: '13px', textTransform: 'uppercase' }}>{b.currency}</span>
+              <span style={{ color: '#aaaaaa', fontSize: '13px' }}>{parseFloat(b.available).toFixed(8)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {balances.length === 0 && (
+        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
+          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: 0 }}>Sin saldo disponible</p>
+        </div>
+      )}
 
       <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
         <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 8px 0' }}>Esperando pago en Mercado Libre...</p>
@@ -174,8 +221,79 @@ function Dashboard({ onLogout }) {
         </div>
       </div>
 
-      <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333', marginTop: '8px' }} onClick={onLogout}>
+      <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333', marginTop: '8px' }} onClick={() => {
+        chrome.storage.local.clear(() => {
+          onLogout()
+        })
+      }}>
         Cerrar sesión
+      </button>
+    </div>
+  )
+}
+
+function ResumenPago({ datos, balances, onCancelar }) {
+  const saldoMXN = balances.find(b => b.currency === 'mxn')
+  const otrasCriptos = balances.filter(b => b.currency !== 'mxn')
+  const tieneSaldo = saldoMXN && parseFloat(saldoMXN.available) >= parseFloat(datos.monto)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ color: '#5463FF', margin: 0, fontSize: '18px' }}>Pago detectado</h2>
+        <span style={{ fontSize: '11px', color: '#e1ee2a' }}>● ML</span>
+      </div>
+
+      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
+        <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 4px 0' }}>Monto a pagar</p>
+        <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '0', color: '#ffffff' }}>
+          ${parseFloat(datos.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+        </p>
+      </div>
+
+      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Beneficiario</span>
+          <span style={{ color: '#ffffff', fontSize: '12px' }}>{datos.beneficiario}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Banco</span>
+          <span style={{ color: '#ffffff', fontSize: '12px' }}>{datos.banco}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>CLABE</span>
+          <span style={{ color: '#ffffff', fontSize: '11px' }}>{datos.clabe}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Referencia</span>
+          <span style={{ color: '#ffffff', fontSize: '12px' }}>{datos.referencia}</span>
+        </div>
+      </div>
+
+      {!tieneSaldo && otrasCriptos.length > 0 && (
+        <div style={{ background: '#1a1a2e', borderRadius: '10px', padding: '12px', marginBottom: '12px', border: '1px solid #5463FF' }}>
+          <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 8px 0' }}>Se venderá cripto automáticamente</p>
+          {otrasCriptos.slice(0, 3).map(b => (
+            <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ color: '#ffffff', fontSize: '12px', textTransform: 'uppercase' }}>{b.currency}</span>
+              <span style={{ color: '#aaaaaa', fontSize: '12px' }}>{parseFloat(b.available).toFixed(6)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {balances.length === 0 && (
+        <p style={{ color: '#ff4444', fontSize: '12px', marginBottom: '12px' }}>
+          Sin saldo disponible para pagar
+        </p>
+      )}
+
+      <button style={{ ...buttonStyle, marginBottom: '8px' }} onClick={() => {}}>
+        Confirmar pago
+      </button>
+
+      <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333' }} onClick={onCancelar}>
+        Cancelar
       </button>
     </div>
   )
