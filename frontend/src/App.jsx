@@ -1,5 +1,6 @@
 /* global chrome */
 import { useState, useEffect } from 'react'
+import { validarDatosSPEI } from './utils/validaciones.js'
 
 function App() {
   const [hasKeys, setHasKeys] = useState(null)
@@ -24,28 +25,6 @@ function App() {
   )
 }
 
-async function cifrarTexto(texto, pin) {
-  const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(pin.padEnd(32, '0')),
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt']
-  )
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    keyMaterial,
-    encoder.encode(texto)
-  )
-  const buffer = new Uint8Array(encrypted)
-  return {
-    iv: Array.from(iv),
-    data: Array.from(buffer)
-  }
-}
-
 function Login({ onLogin }) {
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
@@ -55,30 +34,19 @@ function Login({ onLogin }) {
 
   const handleSubmit = async () => {
     setError('')
-    if (!apiKey || !apiSecret || !pin) {
+    if (!apiKey || !apiSecret) {
       setError('Todos los campos son requeridos')
-      return
-    }
-    if (pin.length < 6) {
-      setError('El PIN debe tener 6 dígitos')
-      return
-    }
-    if (!/^\d+$/.test(pin)) {
-      setError('El PIN solo puede contener números')
       return
     }
 
     setCargando(true)
     try {
-      console.log('Intentando conectar con backend...')
       const res = await fetch('http://localhost:3000/verificar-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret })
       })
-      console.log('Respuesta del backend:', res.status)
       const data = await res.json()
-      console.log('Data:', data)
 
       if (!data.valido) {
         setError('API Key o Secret inválidos — verifica tus credenciales')
@@ -86,20 +54,22 @@ function Login({ onLogin }) {
         return
       }
 
-      const keyCifrada = await cifrarTexto(apiKey, pin)
-      const secretCifrado = await cifrarTexto(apiSecret, pin)
-
+      // Guardar keys directamente y mandar al service worker
       chrome.storage.local.set({
-        apiKey: keyCifrada,
-        apiSecret: secretCifrado,
+        apiKey,
+        apiSecret,
         balances: data.balances
       }, () => {
+        chrome.runtime.sendMessage({
+          type: 'GUARDAR_KEYS',
+          apiKey,
+          apiSecret
+        })
         setCargando(false)
         onLogin()
       })
 
     } catch (err) {
-      console.error('Error completo:', err)
       setError('No se pudo conectar con el servidor')
       setCargando(false)
     }
@@ -130,20 +100,6 @@ function Login({ onLogin }) {
         onChange={e => setApiSecret(e.target.value)}
       />
 
-      <label style={labelStyle}>PIN de seguridad</label>
-      <input
-        style={inputStyle}
-        type="password"
-        placeholder="Crea un PIN de 6 dígitos"
-        maxLength={6}
-        value={pin}
-        onChange={e => setPin(e.target.value)}
-      />
-
-      <p style={{ fontSize: '11px', color: '#e1ee2a', marginTop: '8px' }}>
-        * Tu PIN cifra las keys localmente. No lo olvides.
-      </p>
-
       {error && (
         <p style={{ fontSize: '12px', color: '#ff4444', marginTop: '8px' }}>{error}</p>
       )}
@@ -160,7 +116,15 @@ function Dashboard({ onLogout }) {
   const [speiData, setSpeiData] = useState(null)
 
   useEffect(() => {
-    chrome.storage.local.get(['balances', 'speiData', 'speiPending'], (result) => {
+    // Recuperar keys y mandar al service worker
+    chrome.storage.local.get(['apiKey', 'apiSecret', 'balances', 'speiData', 'speiPending'], (result) => {
+      if (result.apiKey && result.apiSecret) {
+        chrome.runtime.sendMessage({
+          type: 'GUARDAR_KEYS',
+          apiKey: result.apiKey,
+          apiSecret: result.apiSecret
+        })
+      }
       if (result.balances) {
         const conSaldo = result.balances.filter(b => parseFloat(b.available) > 0)
         setBalances(conSaldo)
@@ -169,6 +133,26 @@ function Dashboard({ onLogout }) {
         setSpeiData(result.speiData)
       }
     })
+
+    // Refrescar inmediatamente
+    chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
+      if (response?.ok && response.balances) {
+        const conSaldo = response.balances.filter(b => parseFloat(b.available) > 0)
+        setBalances(conSaldo)
+      }
+    })
+
+    // Refrescar cada 30 segundos
+    const intervalo = setInterval(() => {
+      chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
+        if (response?.ok && response.balances) {
+          const conSaldo = response.balances.filter(b => parseFloat(b.available) > 0)
+          setBalances(conSaldo)
+        }
+      })
+    }, 30000)
+
+    return () => clearInterval(intervalo)
   }, [])
 
   if (speiData) {
@@ -233,6 +217,7 @@ function Dashboard({ onLogout }) {
 }
 
 function ResumenPago({ datos, balances, onCancelar }) {
+  const validacion = validarDatosSPEI(datos)
   const saldoMXN = balances.find(b => b.currency === 'mxn')
   const otrasCriptos = balances.filter(b => b.currency !== 'mxn')
   const tieneSaldo = saldoMXN && parseFloat(saldoMXN.available) >= parseFloat(datos.monto)
@@ -270,7 +255,15 @@ function ResumenPago({ datos, balances, onCancelar }) {
         </div>
       </div>
 
-      {!tieneSaldo && otrasCriptos.length > 0 && (
+      {!validacion.valido && (
+        <div style={{ background: '#2a1a1a', borderRadius: '10px', padding: '12px', marginBottom: '12px', border: '1px solid #ff4444' }}>
+          {validacion.errores.map((err, i) => (
+            <p key={i} style={{ color: '#ff4444', fontSize: '12px', margin: '0 0 4px 0' }}>⚠️ {err}</p>
+          ))}
+        </div>
+      )}
+
+      {!tieneSaldo && otrasCriptos.length > 0 && validacion.valido && (
         <div style={{ background: '#1a1a2e', borderRadius: '10px', padding: '12px', marginBottom: '12px', border: '1px solid #5463FF' }}>
           <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 8px 0' }}>Se venderá cripto automáticamente</p>
           {otrasCriptos.slice(0, 3).map(b => (
@@ -288,7 +281,11 @@ function ResumenPago({ datos, balances, onCancelar }) {
         </p>
       )}
 
-      <button style={{ ...buttonStyle, marginBottom: '8px' }} onClick={() => {}}>
+      <button
+        style={{ ...buttonStyle, marginBottom: '8px', opacity: !validacion.valido ? 0.5 : 1 }}
+        onClick={() => {}}
+        disabled={!validacion.valido}
+      >
         Confirmar pago
       </button>
 
