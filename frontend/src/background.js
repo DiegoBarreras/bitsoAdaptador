@@ -1,5 +1,7 @@
 /* global chrome */
 
+const API_URL = 'https://bitsoadaptador-backend.onrender.com'
+
 // Keys en memoria — se limpian cuando el service worker se duerme o se cierra Brave
 let keysEnMemoria = null
 
@@ -23,7 +25,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true
     }
 
-    fetch('http://localhost:3000/verificar-keys', {
+    fetch(`${API_URL}/verificar-keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(keysEnMemoria)

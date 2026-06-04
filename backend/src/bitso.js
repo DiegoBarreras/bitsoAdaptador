@@ -1,6 +1,7 @@
 const crypto = require('crypto')
 
-const BITSO_STAGE_URL = 'https://api.bitso.com/api/v3'
+const BITSO_BASE_URL = 'https://api.bitso.com'
+const BITSO_STAGE_URL = `${BITSO_BASE_URL}/api/v3`
 
 // Nonce v2 — obligatorio desde noviembre 2025
 function generarNonce() {
@@ -30,4 +31,4 @@ async function getBalance(apiKey, apiSecret) {
   return response.json()
 }
 
-module.exports = { getBalance, generarHeaders, generarNonce, BITSO_STAGE_URL }
+module.exports = { getBalance, generarHeaders, generarNonce, BITSO_STAGE_URL, BITSO_BASE_URL }

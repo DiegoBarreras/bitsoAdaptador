@@ -1,7 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 require('dotenv').config()
-const { getBalance, generarHeaders, generarNonce, BITSO_STAGE_URL } = require('./bitso')
+const { getBalance, generarHeaders, generarNonce, BITSO_STAGE_URL, BITSO_BASE_URL } = require('./bitso')
 const app = express()
 const PORT = process.env.PORT || 3000
 
@@ -94,6 +94,53 @@ app.post('/vender-cripto', async (req, res) => {
     }
   } catch (err) {
     console.error('Error venta cripto:', err.message)
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
+// Ejecutar pago SPEI
+app.post('/ejecutar-spei', async (req, res) => {
+  const { apiKey, apiSecret, clabe, monto, beneficiario, referencia } = req.body
+
+  if (!apiKey || !apiSecret || !clabe || !monto) {
+    return res.status(400).json({ ok: false, error: 'Faltan parámetros' })
+  }
+
+  try {
+    const body = JSON.stringify({
+      currency: 'mxn',
+      protocol: 'clabe',
+      amount: monto.toString(),
+      clabe: clabe,
+      beneficiary: beneficiario || 'Mercado Libre',
+      numeric_ref: referencia ? referencia.substring(0, 7) : '1234567',
+      notes_ref: 'Pago Bitso Adapter',
+      origin_id: `bitso_adapter_${Date.now()}`
+    })
+
+    const ruta = '/v3/withdrawals'
+    const headers = generarHeaders(apiKey, apiSecret, 'POST', ruta, body)
+
+    const response = await fetch(`${BITSO_BASE_URL}/v3/withdrawals`, {
+      method: 'POST',
+      headers,
+      body
+    })
+
+    const data = await response.json()
+    console.log('Respuesta SPEI:', JSON.stringify(data))
+
+    if (data.success) {
+      res.json({
+        ok: true,
+        wid: data.payload.wid,
+        status: data.payload.status
+      })
+    } else {
+      res.json({ ok: false, error: data.error?.message || 'Error al ejecutar el pago' })
+    }
+  } catch (err) {
+    console.error('Error SPEI:', err.message)
     res.status(500).json({ ok: false, error: err.message })
   }
 })

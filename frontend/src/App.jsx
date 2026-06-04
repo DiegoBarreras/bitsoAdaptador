@@ -1,6 +1,7 @@
 /* global chrome */
 import { useState, useEffect } from 'react'
 import { validarDatosSPEI } from './utils/validaciones.js'
+import { API_URL } from './config.js'
 
 function App() {
   const [hasKeys, setHasKeys] = useState(null)
@@ -39,7 +40,7 @@ function Login({ onLogin }) {
 
     setCargando(true)
     try {
-      const res = await fetch('http://localhost:3000/verificar-keys', {
+      const res = await fetch(`${API_URL}/verificar-keys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret })
@@ -120,7 +121,7 @@ function Dashboard({ onLogout }) {
   }
 
   const obtenerPrecios = () => {
-    fetch('http://localhost:3000/precios')
+    fetch(`${API_URL}/precios`)
       .then(res => res.json())
       .then(data => { if (data.ok) setPrecios(data.precios) })
       .catch(() => {})
@@ -410,7 +411,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
 
     chrome.storage.local.get(['apiKey', 'apiSecret'], async (result) => {
       try {
-        const res = await fetch('http://localhost:3000/vender-cripto', {
+        const res = await fetch(`${API_URL}/vender-cripto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
