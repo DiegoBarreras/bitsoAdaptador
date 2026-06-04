@@ -72,7 +72,7 @@ app.post('/vender-cripto', async (req, res) => {
       book,
       side: 'sell',
       type: 'market',
-      major: montoMXN.toString()
+      minor: montoMXN.toString()
     })
 
     const ruta = '/api/v3/orders/'
