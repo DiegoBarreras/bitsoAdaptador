@@ -431,7 +431,9 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
             apiKey: result.apiKey,
             apiSecret: result.apiSecret,
             cripto: criptoSeleccionada.currency,
-            montoMXN: montoAVender
+            montoMXN: montoAVender,
+            usarCantidad: !usarMontoPersonalizado && !montoObjetivo,
+            cantidad: (parseFloat(criptoSeleccionada.available) * 0.985).toString()
           })
         })
         const data = await res.json()
@@ -459,7 +461,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
       ? Math.min(montoFinal, criptoSeleccionada.valorMXN).toFixed(2)
       : montoObjetivo
         ? Math.min(parseFloat(montoObjetivo), criptoSeleccionada.valorMXN).toFixed(2)
-        : (criptoSeleccionada.valorMXN * 0.985).toFixed(2) 
+        : (criptoSeleccionada.valorMXN * 0.95).toFixed(2) 
     : '0.00'
 
   const montoValido = parseFloat(montoAVender) >= 10

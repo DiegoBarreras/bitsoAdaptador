@@ -60,21 +60,26 @@ app.get('/precios', async (req, res) => {
 
 // Vender cripto a MXN
 app.post('/vender-cripto', async (req, res) => {
-  const { apiKey, apiSecret, cripto, montoMXN } = req.body
+  const { apiKey, apiSecret, cripto, montoMXN, cantidadCripto } = req.body
 
-  if (!apiKey || !apiSecret || !cripto || !montoMXN) {
+  if (!apiKey || !apiSecret || !cripto || (!montoMXN && !cantidadCripto)) {
     return res.status(400).json({ ok: false, error: 'Faltan parámetros' })
   }
 
   try {
-    const book = `${cripto}_mxn`
-    const body = JSON.stringify({
-      book,
+    const bodyObj = {
+      book: `${cripto}_mxn`,
       side: 'sell',
-      type: 'market',
-      minor: montoMXN.toString()
-    })
+      type: 'market'
+    }
 
+    if (cantidadCripto) {
+      bodyObj.major = cantidadCripto.toString()
+    } else {
+      bodyObj.minor = montoMXN.toString()
+    }
+
+    const body = JSON.stringify(bodyObj)
     const ruta = '/api/v3/orders/'
     const headers = generarHeaders(apiKey, apiSecret, 'POST', ruta, body)
     console.log('Body enviado a Bitso:', body)
