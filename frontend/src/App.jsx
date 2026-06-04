@@ -459,9 +459,9 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
       ? Math.min(montoFinal, criptoSeleccionada.valorMXN).toFixed(2)
       : montoObjetivo
         ? Math.min(parseFloat(montoObjetivo), criptoSeleccionada.valorMXN).toFixed(2)
-        : criptoSeleccionada.valorMXN.toFixed(2)
+        : (criptoSeleccionada.valorMXN * 0.985).toFixed(2) 
     : '0.00'
-    
+
   const montoValido = parseFloat(montoAVender) >= 10
 
   useEffect(() => {
