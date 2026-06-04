@@ -174,6 +174,80 @@ app.post('/webhook/bitso', (req, res) => {
   res.status(200).json({ ok: true })
 })
 
+// Registrar webhook en Bitso
+app.post('/registrar-webhook', async (req, res) => {
+  const { apiKey, apiSecret } = req.body
+
+  try {
+    const body = JSON.stringify({
+      callback_url: 'https://bitsoadaptador-backend.onrender.com/webhook/bitso'
+    })
+
+    const ruta = '/api/v3/webhooks'
+    const headers = generarHeaders(apiKey, apiSecret, 'POST', ruta, body)
+
+    const response = await fetch(`${BITSO_BASE_URL}/api/v3/webhooks`, {
+      method: 'POST',
+      headers,
+      body
+    })
+
+    const data = await response.json()
+    console.log('Registro webhook:', JSON.stringify(data))
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
+// IPs oficiales de Bitso Production
+const BITSO_IPS = [
+  '52.15.91.227',
+  '18.216.72.107',
+  '18.219.140.132'
+]
+
+// Webhook de Bitso — recibe eventos de retiro y depósito
+app.post('/webhook/bitso', (req, res) => {
+  // Validar que viene de Bitso
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress
+  
+  if (!BITSO_IPS.includes(ip)) {
+    console.warn(`Webhook rechazado — IP no autorizada: ${ip}`)
+    return res.status(403).json({ ok: false, error: 'IP no autorizada' })
+  }
+
+  const evento = req.body
+  console.log('Webhook recibido:', JSON.stringify(evento))
+
+  if (!evento || !evento.event || !evento.payload) {
+    return res.status(400).json({ ok: false, error: 'Payload inválido' })
+  }
+
+  // Responder inmediatamente con 200 — procesar después
+  res.status(200).json({ ok: true })
+
+  // Procesar el evento de forma asíncrona
+  setImmediate(() => {
+    if (evento.event === 'withdrawal') {
+      const { wid, status, amount, currency } = evento.payload
+      console.log(`Retiro ${wid}: ${status} — ${amount} ${currency}`)
+
+      if (status === 'complete') {
+        console.log(`✅ Pago completado: ${amount} ${currency}`)
+      } else if (status === 'failed') {
+        const razon = evento.payload.details?.fail_reason || 'razón desconocida'
+        console.log(`Pago fallido: ${razon}`)
+      }
+    }
+
+    if (evento.event === 'funding') {
+      const { fid, status, amount, currency } = evento.payload
+      console.log(`Depósito ${fid}: ${status} — ${amount} ${currency}`)
+    }
+  })
+})
+
 app.listen(PORT, () => {
   console.log(`Backend corriendo en puerto ${PORT}`)
 })
