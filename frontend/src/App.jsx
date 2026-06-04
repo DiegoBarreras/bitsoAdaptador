@@ -394,15 +394,20 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
     .map(b => ({ ...b, valorMXN: parseFloat(b.available) * (precios[b.currency] || 0) }))
     .sort((a, b) => b.valorMXN - a.valorMXN)
 
-  const [criptoSeleccionada, setCriptoSeleccionada] = useState(
-    criptoPreseleccionada
-      ? criptosOrdenadas.find(b => b.currency === criptoPreseleccionada) || null
-      : null
-  )
+  const [criptoSeleccionada, setCriptoSeleccionada] = useState(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
   const [montoPersonalizado, setMontoPersonalizado] = useState('')
   const [usarMontoPersonalizado, setUsarMontoPersonalizado] = useState(false)
+  const [feeInfo, setFeeInfo] = useState(null)
+
+  useEffect(() => {
+    if (criptoPreseleccionada && criptosOrdenadas.length > 0 && !criptoSeleccionada) {
+      const encontrada = criptosOrdenadas.find(b => b.currency === criptoPreseleccionada)
+      if (encontrada) setCriptoSeleccionada(encontrada)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [criptoPreseleccionada, precios])
 
   const handleVender = async () => {
     if (!criptoSeleccionada) return
@@ -450,6 +455,28 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
     : '0.00'
     
   const montoValido = parseFloat(montoAVender) >= 10
+
+  useEffect(() => {
+    console.log('useEffect fees ejecutado, cripto:', criptoSeleccionada?.currency)
+    if (!criptoSeleccionada) return
+
+    setFeeInfo(null) // limpiar fee anterior
+
+    chrome.storage.local.get(['apiKey', 'apiSecret'], (result) => {
+      fetch(`${API_URL}/fees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: result.apiKey,
+          apiSecret: result.apiSecret,
+          cripto: criptoSeleccionada.currency
+        })
+      })
+        .then(res => res.json())
+        .then(data => { if (data.ok) setFeeInfo(data) })
+        .catch(() => {})
+    })
+  }, [criptoSeleccionada?.currency])
   
   return (
     <div>
@@ -544,13 +571,40 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
           )}
 
           <div style={{ background: '#1a1a2e', borderRadius: '10px', padding: '12px', marginTop: '8px', border: '1px solid #5463FF' }}>
-            <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 4px 0' }}>Resumen de venta</p>
-            <p style={{ color: '#ffffff', fontSize: '12px', margin: 0 }}>
-              Venderás <span style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{criptoSeleccionada.currency}</span> por{' '}
-              <span style={{ color: montoValido ? '#e1ee2a' : '#ff4444', fontWeight: 'bold' }}>
+            <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 8px 0' }}>Resumen de venta</p>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Venderás</span>
+              <span style={{ color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                {criptoSeleccionada.currency}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Monto bruto</span>
+              <span style={{ color: '#ffffff', fontSize: '12px' }}>
                 ${parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
               </span>
-            </p>
+            </div>
+
+            {feeInfo && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Fee ({feeInfo.taker_fee_percent}%)</span>
+                <span style={{ color: '#ff4444', fontSize: '12px' }}>
+                  -${(parseFloat(montoAVender) * parseFloat(feeInfo.taker_fee_decimal)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                </span>
+              </div>
+            )}
+
+            <div style={{ borderTop: '1px solid #333', marginTop: '8px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#aaaaaa', fontSize: '12px', fontWeight: 'bold' }}>Recibirás</span>
+              <span style={{ color: '#e1ee2a', fontSize: '13px', fontWeight: 'bold' }}>
+                ${feeInfo
+                  ? (parseFloat(montoAVender) * (1 - parseFloat(feeInfo.taker_fee_decimal))).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+                  : parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+                } MXN
+              </span>
+            </div>
           </div>
         </div>
       )}

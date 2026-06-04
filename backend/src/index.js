@@ -145,35 +145,6 @@ app.post('/ejecutar-spei', async (req, res) => {
   }
 })
 
-// Webhook de Bitso — recibe eventos de retiro y depósito
-app.post('/webhook/bitso', (req, res) => {
-  const evento = req.body
-
-  console.log('Webhook recibido:', JSON.stringify(evento))
-
-  if (!evento || !evento.event || !evento.payload) {
-    return res.status(400).json({ ok: false, error: 'Payload inválido' })
-  }
-
-  // Procesar retiro
-  if (evento.event === 'withdrawal') {
-    const { wid, status, amount, currency } = evento.payload
-    console.log(`Retiro ${wid}: ${status} — ${amount} ${currency}`)
-
-    // Aquí guardarías el estado en DB o notificarías a la extensión
-    // Por ahora solo lo loggeamos
-  }
-
-  // Procesar depósito
-  if (evento.event === 'funding') {
-    const { fid, status, amount, currency } = evento.payload
-    console.log(`Depósito ${fid}: ${status} — ${amount} ${currency}`)
-  }
-
-  // Bitso espera un 200 para confirmar recepción
-  res.status(200).json({ ok: true })
-})
-
 // Registrar webhook en Bitso
 app.post('/registrar-webhook', async (req, res) => {
   const { apiKey, apiSecret } = req.body
@@ -246,6 +217,34 @@ app.post('/webhook/bitso', (req, res) => {
       console.log(`Depósito ${fid}: ${status} — ${amount} ${currency}`)
     }
   })
+})
+
+// Obtener fees del usuario
+app.post('/fees', async (req, res) => {
+  const { apiKey, apiSecret, cripto } = req.body
+
+  try {
+    const ruta = '/api/v3/fees/'
+    const headers = generarHeaders(apiKey, apiSecret, 'GET', ruta)
+    const response = await fetch(`${BITSO_STAGE_URL}/fees/`, { headers })
+    const data = await response.json()
+
+    if (data.success) {
+      // Buscar el fee para el book específico (ej: usdt_mxn)
+      const book = `${cripto}_mxn`
+      const feeInfo = data.payload.fees.find(f => f.book === book)
+
+      res.json({
+        ok: true,
+        taker_fee_percent: feeInfo ? feeInfo.taker_fee_percent : '0.6500',
+        taker_fee_decimal: feeInfo ? feeInfo.taker_fee_decimal : '0.00650000'
+      })
+    } else {
+      res.json({ ok: false, error: 'Error al obtener fees' })
+    }
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message })
+  }
 })
 
 app.listen(PORT, () => {
