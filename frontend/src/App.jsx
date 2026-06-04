@@ -407,6 +407,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
   const [montoPersonalizado, setMontoPersonalizado] = useState('')
   const [usarMontoPersonalizado, setUsarMontoPersonalizado] = useState(false)
   const [feeInfo, setFeeInfo] = useState(null)
+  const [confirmar, setConfirmar] = useState(false)
 
   useEffect(() => {
     if (criptoPreseleccionada && criptosOrdenadas.length > 0 && !criptoSeleccionada) {
@@ -484,6 +485,51 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
         .catch(() => {})
     })
   }, [criptoSeleccionada?.currency])
+
+  if (confirmar) {
+    return (
+      <div>
+        <h2 style={{ color: '#5463FF', marginBottom: '24px', fontSize: '18px' }}>
+          Confirmar venta
+        </h2>
+
+        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '24px', marginBottom: '24px', textAlign: 'center' }}>
+          <p style={{ color: '#aaaaaa', fontSize: '13px', margin: '0 0 12px 0' }}>¿Deseas vender</p>
+          <p style={{ color: '#e1ee2a', fontSize: '26px', fontWeight: 'bold', margin: '0 0 8px 0' }}>
+            ${parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+          </p>
+          <p style={{ color: '#aaaaaa', fontSize: '13px', margin: 0 }}>
+            de <span style={{ color: '#ffffff', fontWeight: 'bold', textTransform: 'uppercase' }}>{criptoSeleccionada.currency}</span>?
+          </p>
+          {feeInfo && (
+            <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '12px 0 0 0' }}>
+              Recibirás aproximadamente{' '}
+              <span style={{ color: '#e1ee2a' }}>
+                ${(parseFloat(montoAVender) * (1 - parseFloat(feeInfo.taker_fee_decimal))).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+              </span>
+              {' '}después del fee
+            </p>
+          )}
+        </div>
+
+        <button
+          style={{ ...buttonStyle, marginBottom: '8px', opacity: cargando ? 0.7 : 1 }}
+          onClick={handleVender}
+          disabled={cargando}
+        >
+          {cargando ? 'Vendiendo...' : 'Sí, vender'}
+        </button>
+
+        <button
+          style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333' }}
+          onClick={() => setConfirmar(false)}
+          disabled={cargando}
+        >
+          Cancelar
+        </button>
+      </div>
+    )
+  }
   
   return (
     <div>
@@ -624,10 +670,10 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
 
       <button
         style={{ ...buttonStyle, marginBottom: '8px', opacity: (!criptoSeleccionada || cargando || !montoValido) ? 0.5 : 1 }}
-        onClick={handleVender}
+        onClick={() => setConfirmar(true)}
         disabled={!criptoSeleccionada || cargando || !montoValido}
       >
-        {cargando ? 'Vendiendo...' : 'Confirmar venta'}
+        Confirmar venta
       </button>
 
       <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333' }} onClick={onCancelar}>
