@@ -145,6 +145,35 @@ app.post('/ejecutar-spei', async (req, res) => {
   }
 })
 
+// Webhook de Bitso — recibe eventos de retiro y depósito
+app.post('/webhook/bitso', (req, res) => {
+  const evento = req.body
+
+  console.log('Webhook recibido:', JSON.stringify(evento))
+
+  if (!evento || !evento.event || !evento.payload) {
+    return res.status(400).json({ ok: false, error: 'Payload inválido' })
+  }
+
+  // Procesar retiro
+  if (evento.event === 'withdrawal') {
+    const { wid, status, amount, currency } = evento.payload
+    console.log(`Retiro ${wid}: ${status} — ${amount} ${currency}`)
+
+    // Aquí guardarías el estado en DB o notificarías a la extensión
+    // Por ahora solo lo loggeamos
+  }
+
+  // Procesar depósito
+  if (evento.event === 'funding') {
+    const { fid, status, amount, currency } = evento.payload
+    console.log(`Depósito ${fid}: ${status} — ${amount} ${currency}`)
+  }
+
+  // Bitso espera un 200 para confirmar recepción
+  res.status(200).json({ ok: true })
+})
+
 app.listen(PORT, () => {
   console.log(`Backend corriendo en puerto ${PORT}`)
 })
