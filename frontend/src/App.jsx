@@ -28,7 +28,6 @@ function App() {
 function Login({ onLogin }) {
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
-  const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
 
@@ -113,10 +112,19 @@ function Login({ onLogin }) {
 
 function Dashboard({ onLogout }) {
   const [balances, setBalances] = useState([])
+  const [precios, setPrecios] = useState({})
   const [speiData, setSpeiData] = useState(null)
 
+  const obtenerPrecios = () => {
+    fetch('http://localhost:3000/precios')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) setPrecios(data.precios)
+      })
+      .catch(() => {})
+  }
+
   useEffect(() => {
-    // Recuperar keys y mandar al service worker
     chrome.storage.local.get(['apiKey', 'apiSecret', 'balances', 'speiData', 'speiPending'], (result) => {
       if (result.apiKey && result.apiSecret) {
         chrome.runtime.sendMessage({
@@ -134,7 +142,8 @@ function Dashboard({ onLogout }) {
       }
     })
 
-    // Refrescar inmediatamente
+    obtenerPrecios()
+
     chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
       if (response?.ok && response.balances) {
         const conSaldo = response.balances.filter(b => parseFloat(b.available) > 0)
@@ -142,7 +151,6 @@ function Dashboard({ onLogout }) {
       }
     })
 
-    // Refrescar cada 30 segundos
     const intervalo = setInterval(() => {
       chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
         if (response?.ok && response.balances) {
@@ -150,21 +158,35 @@ function Dashboard({ onLogout }) {
           setBalances(conSaldo)
         }
       })
+      obtenerPrecios()
     }, 30000)
 
     return () => clearInterval(intervalo)
   }, [])
 
   if (speiData) {
-    return <ResumenPago datos={speiData} balances={balances} onCancelar={() => {
-      chrome.storage.local.remove(['speiData', 'speiPending'])
-      chrome.action.setBadgeText({ text: '' })
-      setSpeiData(null)
-    }} />
+    return <ResumenPago 
+      datos={speiData} 
+      balances={balances} 
+      precios={precios}
+      onCancelar={() => {
+        chrome.storage.local.remove(['speiData', 'speiPending'])
+        chrome.action.setBadgeText({ text: '' })
+        setSpeiData(null)
+      }} 
+    />
   }
 
   const saldoMXN = balances.find(b => b.currency === 'mxn')
   const otrasMonedas = balances.filter(b => b.currency !== 'mxn')
+
+  // Calcular valor en MXN de cada cripto
+  const valorCriptos = otrasMonedas.reduce((total, b) => {
+    const precio = precios[b.currency] || 0
+    return total + parseFloat(b.available) * precio
+  }, 0)
+
+  const totalMXN = (saldoMXN ? parseFloat(saldoMXN.available) : 0) + valorCriptos
 
   return (
     <div>
@@ -174,21 +196,44 @@ function Dashboard({ onLogout }) {
       </div>
 
       <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-        <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 8px 0' }}>Saldo MXN</p>
-        <p style={{ fontSize: '26px', fontWeight: 'bold', margin: '0' }}>
-          ${saldoMXN ? parseFloat(saldoMXN.available).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'} MXN
+        <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 4px 0' }}>Patrimonio total</p>
+        <p style={{ fontSize: '26px', fontWeight: 'bold', margin: '0 0 8px 0' }}>
+          ${totalMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
         </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Saldo MXN</span>
+          <span style={{ color: '#ffffff', fontSize: '12px' }}>
+            ${saldoMXN ? parseFloat(saldoMXN.available).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'}
+          </span>
+        </div>
+        {valorCriptos > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+            <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Valor en criptos</span>
+            <span style={{ color: '#ffffff', fontSize: '12px' }}>
+              ${valorCriptos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        )}
       </div>
 
       {otrasMonedas.length > 0 && (
         <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 12px 0' }}>Otras criptomonedas</p>
-          {otrasMonedas.map(b => (
-            <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ color: '#ffffff', fontSize: '13px', textTransform: 'uppercase' }}>{b.currency}</span>
-              <span style={{ color: '#aaaaaa', fontSize: '13px' }}>{parseFloat(b.available).toFixed(8)}</span>
-            </div>
-          ))}
+          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 12px 0' }}>Criptomonedas</p>
+          {otrasMonedas.map(b => {
+            const precio = precios[b.currency] || 0
+            const valorMXN = parseFloat(b.available) * precio
+            return (
+              <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', width: '60px' }}>{b.currency}</span>
+                <span style={{ color: '#aaaaaa', fontSize: '12px', flex: 1, textAlign: 'center' }}>
+                  {parseFloat(b.available).toFixed(6)}
+                </span>
+                <span style={{ color: '#e1ee2a', fontSize: '12px', textAlign: 'right' }}>
+                  {precio > 0 ? `$${valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -206,9 +251,7 @@ function Dashboard({ onLogout }) {
       </div>
 
       <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333', marginTop: '8px' }} onClick={() => {
-        chrome.storage.local.clear(() => {
-          onLogout()
-        })
+        chrome.storage.local.clear(() => onLogout())
       }}>
         Cerrar sesión
       </button>
@@ -216,11 +259,22 @@ function Dashboard({ onLogout }) {
   )
 }
 
-function ResumenPago({ datos, balances, onCancelar }) {
+function ResumenPago({ datos, balances, precios, onCancelar }) {
   const validacion = validarDatosSPEI(datos)
+  const montoRequerido = parseFloat(datos.monto)
+
+  // Calcular saldo total disponible
   const saldoMXN = balances.find(b => b.currency === 'mxn')
   const otrasCriptos = balances.filter(b => b.currency !== 'mxn')
-  const tieneSaldo = saldoMXN && parseFloat(saldoMXN.available) >= parseFloat(datos.monto)
+
+  const totalMXN = (saldoMXN ? parseFloat(saldoMXN.available) : 0) +
+    otrasCriptos.reduce((total, b) => {
+      const precio = precios[b.currency] || 0
+      return total + parseFloat(b.available) * precio
+    }, 0)
+
+  const alcanzaElSaldo = totalMXN >= montoRequerido
+  const puedeConfirmar = validacion.valido && alcanzaElSaldo
 
   return (
     <div>
@@ -232,7 +286,7 @@ function ResumenPago({ datos, balances, onCancelar }) {
       <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
         <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 4px 0' }}>Monto a pagar</p>
         <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '0', color: '#ffffff' }}>
-          ${parseFloat(datos.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+          ${montoRequerido.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
         </p>
       </div>
 
@@ -255,6 +309,20 @@ function ResumenPago({ datos, balances, onCancelar }) {
         </div>
       </div>
 
+      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Saldo total disponible</span>
+          <span style={{ color: alcanzaElSaldo ? '#e1ee2a' : '#ff4444', fontSize: '12px', fontWeight: 'bold' }}>
+            ${totalMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+          </span>
+        </div>
+        {!alcanzaElSaldo && (
+          <p style={{ color: '#ff4444', fontSize: '11px', margin: '8px 0 0 0' }}>
+            Saldo insuficiente. Hacen falta ${(montoRequerido - totalMXN).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+          </p>
+        )}
+      </div>
+
       {!validacion.valido && (
         <div style={{ background: '#2a1a1a', borderRadius: '10px', padding: '12px', marginBottom: '12px', border: '1px solid #ff4444' }}>
           {validacion.errores.map((err, i) => (
@@ -263,28 +331,10 @@ function ResumenPago({ datos, balances, onCancelar }) {
         </div>
       )}
 
-      {!tieneSaldo && otrasCriptos.length > 0 && validacion.valido && (
-        <div style={{ background: '#1a1a2e', borderRadius: '10px', padding: '12px', marginBottom: '12px', border: '1px solid #5463FF' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 8px 0' }}>Se venderá cripto automáticamente</p>
-          {otrasCriptos.slice(0, 3).map(b => (
-            <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span style={{ color: '#ffffff', fontSize: '12px', textTransform: 'uppercase' }}>{b.currency}</span>
-              <span style={{ color: '#aaaaaa', fontSize: '12px' }}>{parseFloat(b.available).toFixed(6)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {balances.length === 0 && (
-        <p style={{ color: '#ff4444', fontSize: '12px', marginBottom: '12px' }}>
-          Sin saldo disponible para pagar
-        </p>
-      )}
-
       <button
-        style={{ ...buttonStyle, marginBottom: '8px', opacity: !validacion.valido ? 0.5 : 1 }}
+        style={{ ...buttonStyle, marginBottom: '8px', opacity: !puedeConfirmar ? 0.5 : 1 }}
         onClick={() => {}}
-        disabled={!validacion.valido}
+        disabled={!puedeConfirmar}
       >
         Confirmar pago
       </button>
