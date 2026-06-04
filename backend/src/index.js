@@ -58,6 +58,8 @@ app.get('/precios', async (req, res) => {
   }
 })
 
+console.log('Body enviado a Bitso:', body)
+
 // Vender cripto a MXN
 app.post('/vender-cripto', async (req, res) => {
   const { apiKey, apiSecret, cripto, montoMXN } = req.body
