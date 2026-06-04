@@ -58,8 +58,6 @@ app.get('/precios', async (req, res) => {
   }
 })
 
-console.log('Body enviado a Bitso:', body)
-
 // Vender cripto a MXN
 app.post('/vender-cripto', async (req, res) => {
   const { apiKey, apiSecret, cripto, montoMXN } = req.body
@@ -79,6 +77,7 @@ app.post('/vender-cripto', async (req, res) => {
 
     const ruta = '/api/v3/orders/'
     const headers = generarHeaders(apiKey, apiSecret, 'POST', ruta, body)
+    console.log('Body enviado a Bitso:', body)
 
     const response = await fetch(`${BITSO_STAGE_URL}/orders/`, {
       method: 'POST',
