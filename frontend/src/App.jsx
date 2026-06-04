@@ -235,9 +235,16 @@ function Dashboard({ onLogout }) {
                 <span style={{ color: '#aaaaaa', fontSize: '12px', flex: 1, textAlign: 'center' }}>
                   {parseFloat(b.available).toFixed(6)}
                 </span>
-                <span style={{ color: '#e1ee2a', fontSize: '12px', width: '80px', textAlign: 'right' }}>
-                  {b.valorMXN > 0 ? `$${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
-                </span>
+                <div style={{ textAlign: 'right', width: '80px' }}>
+                  <span style={{ color: b.valorMXN >= 10 ? '#e1ee2a' : '#ff4444', fontSize: '12px' }}>
+                    {b.valorMXN > 0 ? `$${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
+                  </span>
+                  {b.valorMXN > 0 && b.valorMXN < 10 && (
+                    <p style={{ color: '#ff4444', fontSize: '9px', margin: '1px 0 0 0' }}>
+                      mín. $10
+                    </p>
+                  )}
+                </div>
                 <button
                   onClick={() => setMostrarVenta(b.currency)}
                   style={{
@@ -521,10 +528,12 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
                 </p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <span style={{ color: '#e1ee2a', fontSize: '13px', fontWeight: 'bold' }}>
+                <span style={{ color: b.valorMXN >= 10 ? '#e1ee2a' : '#ff4444', fontSize: '13px', fontWeight: 'bold' }}>
                   ${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </span>
-                <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '2px 0 0 0' }}>MXN</p>
+                <p style={{ color: b.valorMXN >= 10 ? '#aaaaaa' : '#ff4444', fontSize: '11px', margin: '2px 0 0 0' }}>
+                  {b.valorMXN >= 10 ? 'MXN' : 'mín. $10 MXN'}
+                </p>
               </div>
             </div>
           ))}
