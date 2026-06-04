@@ -248,6 +248,10 @@ app.post('/fees', async (req, res) => {
   }
 })
 
+app.get('/version', (req, res) => {
+  res.json({ version: 'major-fix', timestamp: Date.now() })
+})
+
 app.listen(PORT, () => {
   console.log(`Backend corriendo en puerto ${PORT}`)
 })
