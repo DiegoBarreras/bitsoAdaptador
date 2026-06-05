@@ -105,11 +105,184 @@ function Login({ onLogin }) {
   )
 }
 
+function Historial({ onVolver }) {
+  const [pestana, setPestana] = useState('retiros')
+  const [retiros, setRetiros] = useState([])
+  const [trades, setTrades] = useState([])
+  const [cargando, setCargando] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setCargando(true)
+    setError('')
+
+    chrome.storage.local.get(['apiKey', 'apiSecret'], async (result) => {
+      try {
+        const [resRetiros, resTrades] = await Promise.all([
+          fetch(`${API_URL}/historial-retiros`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: result.apiKey, apiSecret: result.apiSecret })
+          }),
+          fetch(`${API_URL}/historial-trades`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: result.apiKey, apiSecret: result.apiSecret })
+          })
+        ])
+
+        const dataRetiros = await resRetiros.json()
+        const dataTrades = await resTrades.json()
+
+        if (dataRetiros.ok) setRetiros(dataRetiros.retiros || [])
+        if (dataTrades.ok) setTrades(dataTrades.trades || [])
+        if (!dataRetiros.ok && !dataTrades.ok) setError('No se pudo obtener el historial')
+      } catch {
+        setError('No se pudo conectar con el servidor')
+      } finally {
+        setCargando(false)
+      }
+    })
+  }, [])
+
+  const retirosSPEI = retiros.filter(r => r.method === 'sp' || r.currency === 'mxn')
+
+  const formatFecha = (ts) => {
+    if (!ts) return '—'
+    return new Date(ts).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const estadoColor = (status) => {
+    if (status === 'complete') return '#e1ee2a'
+    if (status === 'failed') return '#ff4444'
+    return '#aaaaaa'
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
+        <button
+          onClick={onVolver}
+          style={{ background: 'none', border: 'none', color: '#5463FF', cursor: 'pointer', fontSize: '18px', padding: 0 }}
+        >
+          ←
+        </button>
+        <h2 style={{ color: '#5463FF', margin: 0, fontSize: '18px' }}>Historial</h2>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        {['retiros', 'trades'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setPestana(tab)}
+            style={{
+              flex: 1,
+              padding: '8px',
+              background: pestana === tab ? '#5463FF' : '#1a1a1a',
+              border: pestana === tab ? 'none' : '1px solid #333',
+              borderRadius: '6px',
+              color: pestana === tab ? '#ffffff' : '#aaaaaa',
+              fontSize: '13px',
+              cursor: 'pointer',
+              fontWeight: pestana === tab ? 'bold' : 'normal'
+            }}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {cargando && (
+        <p style={{ color: '#aaaaaa', fontSize: '13px', textAlign: 'center' }}>Cargando...</p>
+      )}
+
+      {error && (
+        <p style={{ color: '#ff4444', fontSize: '12px', textAlign: 'center' }}>{error}</p>
+      )}
+
+      {!cargando && !error && pestana === 'retiros' && (
+        <div>
+          {retirosSPEI.length === 0 ? (
+            <p style={{ color: '#aaaaaa', fontSize: '12px', textAlign: 'center', marginTop: '24px' }}>
+              Sin retiros SPEI registrados
+            </p>
+          ) : (
+            retirosSPEI.map((r, i) => (
+              <div key={r.wid || i} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ color: '#aaaaaa', fontSize: '11px' }}>{formatFecha(r.created_at)}</span>
+                  <span style={{ color: estadoColor(r.status), fontSize: '11px', fontWeight: 'bold' }}>
+                    {r.status || '—'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#ffffff', fontSize: '15px', fontWeight: 'bold' }}>
+                    ${parseFloat(r.amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                  </span>
+                </div>
+                {r.details?.clabe && (
+                  <p style={{ color: '#aaaaaa', fontSize: '10px', margin: '4px 0 0 0' }}>
+                    CLABE: {r.details.clabe}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {!cargando && !error && pestana === 'trades' && (
+        <div>
+          {trades.length === 0 ? (
+            <p style={{ color: '#aaaaaa', fontSize: '12px', textAlign: 'center', marginTop: '24px' }}>
+              Sin trades registrados
+            </p>
+          ) : (
+            trades.map((t, i) => {
+              const cripto = t.book ? t.book.replace('_mxn', '').toUpperCase() : '—'
+              const esMXN = t.book?.endsWith('_mxn')
+              const monto = esMXN ? parseFloat(t.minor || 0) : parseFloat(t.major || 0)
+              const montoMXN = esMXN ? Math.abs(parseFloat(t.minor || 0)) : Math.abs(parseFloat(t.minor || 0))
+              const tipo = t.maker_side === 'sell' ? 'Compra' : 'Venta'
+              return (
+                <div key={t.tid || i} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: '#aaaaaa', fontSize: '11px' }}>{formatFecha(t.created_at)}</span>
+                    <span style={{
+                      color: tipo === 'Compra' ? '#e1ee2a' : '#5463FF',
+                      fontSize: '11px',
+                      fontWeight: 'bold'
+                    }}>
+                      {tipo}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#ffffff', fontSize: '14px', fontWeight: 'bold' }}>{cripto}</span>
+                    <span style={{ color: '#ffffff', fontSize: '14px' }}>
+                      ${montoMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                    </span>
+                  </div>
+                  {t.major && (
+                    <p style={{ color: '#aaaaaa', fontSize: '10px', margin: '4px 0 0 0' }}>
+                      {parseFloat(t.major).toFixed(6)} {cripto}
+                    </p>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Dashboard({ onLogout }) {
   const [balances, setBalances] = useState([])
   const [precios, setPrecios] = useState({})
   const [speiData, setSpeiData] = useState(null)
   const [mostrarVenta, setMostrarVenta] = useState(null)
+  const [mostrarHistorial, setMostrarHistorial] = useState(false)
 
   const refrescarBalances = () => {
     chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
@@ -151,6 +324,10 @@ function Dashboard({ onLogout }) {
 
     return () => clearInterval(intervalo)
   }, [])
+
+  if (mostrarHistorial) {
+    return <Historial onVolver={() => setMostrarHistorial(false)} />
+  }
 
   if (speiData) {
     return <ResumenPago
@@ -278,6 +455,13 @@ function Dashboard({ onLogout }) {
           <div style={{ width: '30%', height: '100%', background: '#5463FF', borderRadius: '1px' }}></div>
         </div>
       </div>
+
+      <button
+        style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #5463FF', marginTop: '8px', color: '#5463FF' }}
+        onClick={() => setMostrarHistorial(true)}
+      >
+        Historial
+      </button>
 
       <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333', marginTop: '8px' }} onClick={() => {
         chrome.storage.local.clear(() => onLogout())
