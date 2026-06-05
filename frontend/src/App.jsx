@@ -108,6 +108,7 @@ function Dashboard({ onLogout }) {
   const [precios, setPrecios] = useState({})
   const [speiData, setSpeiData] = useState(null)
   const [mostrarVenta, setMostrarVenta] = useState(null)
+  const [vista, setVista] = useState('dashboard')
 
   const refrescarBalances = () => {
     chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
@@ -196,6 +197,8 @@ function Dashboard({ onLogout }) {
   return (
     <div className="app-root">
       <Header showStatus />
+      <NavBar vista={vista} onCambiar={setVista} />
+      {vista === 'historial' ? <Historial /> : (
       <div className="screen">
 
         <Card>
@@ -272,6 +275,138 @@ function Dashboard({ onLogout }) {
           Cerrar sesion
         </Button>
 
+      </div>
+      )}
+    </div>
+  )
+}
+
+function NavBar({ vista, onCambiar }) {
+  return (
+    <div className="nav-bar">
+      <button
+        className={`nav-btn${vista === 'dashboard' ? ' active' : ''}`}
+        onClick={() => onCambiar('dashboard')}
+      >
+        Inicio
+      </button>
+      <button
+        className={`nav-btn${vista === 'historial' ? ' active' : ''}`}
+        onClick={() => onCambiar('historial')}
+      >
+        Historial
+      </button>
+    </div>
+  )
+}
+
+function Historial() {
+  const [transacciones, setTransacciones] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [filtro, setFiltro] = useState('todos')
+
+  useEffect(() => {
+    chrome.storage.local.get(['apiKey', 'apiSecret'], (result) => {
+      fetch(`${API_URL}/historial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: result.apiKey, apiSecret: result.apiSecret })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) setTransacciones(data.transacciones)
+          else setError(data.error || 'Error al cargar el historial')
+          setCargando(false)
+        })
+        .catch(() => {
+          setError('No se pudo conectar con el servidor')
+          setCargando(false)
+        })
+    })
+  }, [])
+
+  const formatFecha = (isoStr) => {
+    const d = new Date(isoStr)
+    return d.toLocaleDateString('es-MX', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  }
+
+  if (cargando) return (
+    <div className="screen" style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <p className="loading-text">Cargando historial...</p>
+    </div>
+  )
+
+  if (error) return (
+    <div className="screen" style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <p className="error-text">{error}</p>
+    </div>
+  )
+
+  if (transacciones.length === 0) return (
+    <div className="screen" style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <p className="label-sm">Sin transacciones registradas</p>
+    </div>
+  )
+
+  const txFiltradas = transacciones.filter(tx => {
+    if (filtro === 'transacciones') return tx.tipo === 'compra' || tx.tipo === 'venta'
+    if (filtro === 'retiros') return tx.tipo === 'spei'
+    return true
+  })
+
+  return (
+    <div className="screen">
+      <div className="filter-bar">
+        {[
+          { key: 'todos', label: 'Todos' },
+          { key: 'transacciones', label: 'Transacciones' },
+          { key: 'retiros', label: 'Retiros SPEI' }
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            className={`filter-chip${filtro === key ? ' active' : ''}`}
+            onClick={() => setFiltro(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="tx-list">
+        {txFiltradas.length === 0 && (
+          <p className="label-sm" style={{ textAlign: 'center', padding: '24px 0' }}>
+            Sin resultados para este filtro
+          </p>
+        )}
+        {txFiltradas.map(tx => (
+          <div key={tx.id} className="tx-item">
+            <div className="row">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className={`tx-badge tx-badge-${tx.tipo}`}>
+                  {tx.tipo === 'spei' ? 'SPEI' : tx.tipo}
+                </span>
+                <span className="crypto-ticker">{tx.cripto}</span>
+              </div>
+              <span className={`tx-amount tx-amount-${tx.tipo}`}>
+                {tx.tipo === 'compra' ? '+' : '-'}${parseFloat(tx.montoMXN).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+              </span>
+            </div>
+            {tx.tipo !== 'spei' && tx.cantidad !== null && (
+              <p className="tx-detail">
+                {parseFloat(tx.cantidad).toFixed(6)} {tx.cripto} @ ${parseFloat(tx.precio).toLocaleString('es-MX', { minimumFractionDigits: 2 })} c/u
+              </p>
+            )}
+            {tx.tipo === 'spei' && tx.beneficiario && (
+              <p className="tx-detail">
+                {tx.beneficiario} · {tx.status === 'complete' ? 'Completado' : tx.status}
+              </p>
+            )}
+            <p className="tx-date">{formatFecha(tx.fecha)}</p>
+          </div>
+        ))}
       </div>
     </div>
   )

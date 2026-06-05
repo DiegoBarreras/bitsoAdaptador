@@ -253,6 +253,77 @@ app.post('/fees', async (req, res) => {
   }
 })
 
+// Historial de transacciones: trades cripto + retiros SPEI
+app.post('/historial', async (req, res) => {
+  const { apiKey, apiSecret } = req.body
+
+  if (!apiKey || !apiSecret) {
+    return res.status(400).json({ ok: false, error: 'Faltan credenciales' })
+  }
+
+  try {
+    const rutaTrades = '/api/v3/user_trades/'
+    const rutaRetiros = '/api/v3/withdrawals/'
+
+    const [tradesRes, retirosRes] = await Promise.all([
+      fetch(`${BITSO_STAGE_URL}/user_trades/`, {
+        headers: generarHeaders(apiKey, apiSecret, 'GET', rutaTrades)
+      }),
+      fetch(`${BITSO_STAGE_URL}/withdrawals/`, {
+        headers: generarHeaders(apiKey, apiSecret, 'GET', rutaRetiros)
+      })
+    ])
+
+    const [tradesData, retirosData] = await Promise.all([
+      tradesRes.json(),
+      retirosRes.json()
+    ])
+
+    const transacciones = []
+
+    if (tradesData.success) {
+      tradesData.payload.forEach(trade => {
+        const cripto = trade.book.replace('_mxn', '').toUpperCase()
+        transacciones.push({
+          id: `trade_${trade.tid}`,
+          tipo: trade.side === 'sell' ? 'venta' : 'compra',
+          cripto,
+          montoMXN: Math.abs(parseFloat(trade.minor)).toFixed(2),
+          cantidad: Math.abs(parseFloat(trade.major)),
+          precio: parseFloat(trade.price).toFixed(2),
+          fee: Math.abs(parseFloat(trade.fees_amount)).toFixed(2),
+          fecha: trade.created_at
+        })
+      })
+    }
+
+    if (retirosData.success) {
+      retirosData.payload.forEach(retiro => {
+        transacciones.push({
+          id: `spei_${retiro.wid}`,
+          tipo: 'spei',
+          cripto: 'MXN',
+          montoMXN: parseFloat(retiro.amount).toFixed(2),
+          cantidad: null,
+          precio: null,
+          fee: null,
+          fecha: retiro.created_at,
+          status: retiro.status,
+          beneficiario: retiro.details?.beneficiary_name,
+          clabe: retiro.details?.clabe
+        })
+      })
+    }
+
+    transacciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+
+    res.json({ ok: true, transacciones })
+  } catch (err) {
+    console.error('Error historial:', err.message)
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 app.get('/version', (req, res) => {
   res.json({ version: 'major-fix', timestamp: Date.now() })
 })
