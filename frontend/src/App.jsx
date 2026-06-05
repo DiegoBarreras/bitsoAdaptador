@@ -255,7 +255,7 @@ function Dashboard({ onLogout }) {
   const [precios, setPrecios] = useState({})
   const [speiData, setSpeiData] = useState(null)
   const [mostrarVenta, setMostrarVenta] = useState(null)
-  const [mostrarHistorial, setMostrarHistorial] = useState(false)
+  const [vista, setVista] = useState('dashboard')
 
   const refrescarBalances = () => {
     chrome.runtime.sendMessage({ type: 'REFRESCAR_BALANCE' }, (response) => {
@@ -297,10 +297,6 @@ function Dashboard({ onLogout }) {
 
     return () => clearInterval(intervalo)
   }, [])
-
-  if (mostrarHistorial) {
-    return <Historial onVolver={() => setMostrarHistorial(false)} />
-  }
 
   if (speiData) {
     return <ResumenPago
@@ -348,6 +344,8 @@ function Dashboard({ onLogout }) {
   return (
     <div className="app-root">
       <Header showStatus />
+      <NavBar vista={vista} onCambiar={setVista} />
+      {vista === 'historial' ? <Historial /> : (
       <div className="screen">
 
         <Card>
@@ -419,22 +417,36 @@ function Dashboard({ onLogout }) {
 
         <Button
           variant="secondary"
-          onClick={() => setMostrarHistorial(true)}
-        >
-          Historial
-        </Button>
-
-        <Button
-          variant="secondary"
           onClick={() => chrome.storage.local.clear(() => onLogout())}
         >
           Cerrar sesion
         </Button>
 
       </div>
+      )}
     </div>
   )
 }
+
+function NavBar({ vista, onCambiar }) {
+  return (
+    <div className="nav-bar">
+      <button
+        className={`nav-btn${vista === 'dashboard' ? ' active' : ''}`}
+        onClick={() => onCambiar('dashboard')}
+      >
+        Inicio
+      </button>
+      <button
+        className={`nav-btn${vista === 'historial' ? ' active' : ''}`}
+        onClick={() => onCambiar('historial')}
+      >
+        Historial
+      </button>
+    </div>
+  )
+}
+
 
 function ResumenPago({ datos, balances, precios, onCancelar, onPagoExitoso }) {
   const [mostrarVenta, setMostrarVenta] = useState(false)
