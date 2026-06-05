@@ -2,6 +2,14 @@
 import { useState, useEffect } from 'react'
 import { validarDatosSPEI } from './utils/validaciones.js'
 import { API_URL } from './config.js'
+import './App.css'
+import Header from './components/Header.jsx'
+import InputField from './components/InputField.jsx'
+import Button from './components/Button.jsx'
+import Card from './components/Card.jsx'
+import StepIndicator from './components/StepIndicator.jsx'
+
+const STEPS = ['Acceso', 'Pago SPEI', 'Confirmar']
 
 function App() {
   const [hasKeys, setHasKeys] = useState(null)
@@ -13,16 +21,14 @@ function App() {
   }, [])
 
   if (hasKeys === null) return (
-    <div style={{ width: '360px', minHeight: '500px', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#aaaaaa' }}>Cargando...</p>
+    <div className="loading-screen">
+      <p className="loading-text">Cargando...</p>
     </div>
   )
 
-  return (
-    <div style={{ width: '360px', minHeight: '500px', padding: '24px', fontFamily: 'Arial, sans-serif', background: '#0a0a0a', color: '#ffffff' }}>
-      {hasKeys ? <Dashboard onLogout={() => setHasKeys(false)} /> : <Login onLogin={() => setHasKeys(true)} />}
-    </div>
-  )
+  return hasKeys
+    ? <Dashboard onLogout={() => setHasKeys(false)} />
+    : <Login onLogin={() => setHasKeys(true)} />
 }
 
 function Login({ onLogin }) {
@@ -48,7 +54,7 @@ function Login({ onLogin }) {
       const data = await res.json()
 
       if (!data.valido) {
-        setError('API Key o Secret inválidos — verifica tus credenciales')
+        setError('API Key o Secret invalidos — verifica tus credenciales')
         setCargando(false)
         return
       }
@@ -70,37 +76,29 @@ function Login({ onLogin }) {
   }
 
   return (
-    <div>
-      <h2 style={{ color: '#5463FF', marginBottom: '8px', fontSize: '22px' }}>Bitso Adapter</h2>
-      <p style={{ color: '#aaaaaa', fontSize: '13px', marginBottom: '24px' }}>
-        Conecta tu cuenta de Bitso para pagar en tiendas
-      </p>
-
-      <label style={labelStyle}>API Key</label>
-      <input
-        style={inputStyle}
-        type="text"
-        placeholder="Tu API Key de Bitso"
-        value={apiKey}
-        onChange={e => setApiKey(e.target.value)}
-      />
-
-      <label style={labelStyle}>API Secret</label>
-      <input
-        style={inputStyle}
-        type="password"
-        placeholder="Tu API Secret de Bitso"
-        value={apiSecret}
-        onChange={e => setApiSecret(e.target.value)}
-      />
-
-      {error && (
-        <p style={{ fontSize: '12px', color: '#ff4444', marginTop: '8px' }}>{error}</p>
-      )}
-
-      <button style={{ ...buttonStyle, opacity: cargando ? 0.7 : 1 }} onClick={handleSubmit} disabled={cargando}>
-        {cargando ? 'Conectando...' : 'Conectar cuenta'}
-      </button>
+    <div className="app-root">
+      <Header subtitle="Conecta tu cuenta para pagar en tiendas" />
+      <StepIndicator steps={STEPS} current={0} />
+      <div className="screen">
+        <InputField
+          label="API Key"
+          type="text"
+          placeholder="Tu API Key de Bitso"
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+        />
+        <InputField
+          label="API Secret"
+          type="password"
+          placeholder="Tu API Secret de Bitso"
+          value={apiSecret}
+          onChange={e => setApiSecret(e.target.value)}
+        />
+        {error && <p className="error-text">{error}</p>}
+        <Button onClick={handleSubmit} loading={cargando} disabled={cargando}>
+          Conectar cuenta
+        </Button>
+      </div>
     </div>
   )
 }
@@ -159,120 +157,95 @@ function Historial({ onVolver }) {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '12px' }}>
-        <button
-          onClick={onVolver}
-          style={{ background: 'none', border: 'none', color: '#5463FF', cursor: 'pointer', fontSize: '18px', padding: 0 }}
-        >
-          ←
-        </button>
-        <h2 style={{ color: '#5463FF', margin: 0, fontSize: '18px' }}>Historial</h2>
-      </div>
+    <div className="app-root">
+      <Header subtitle="Consulta tus movimientos" onBack={onVolver} />
+      <div className="screen">
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        {['retiros', 'trades'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setPestana(tab)}
-            style={{
-              flex: 1,
-              padding: '8px',
-              background: pestana === tab ? '#5463FF' : '#1a1a1a',
-              border: pestana === tab ? 'none' : '1px solid #333',
-              borderRadius: '6px',
-              color: pestana === tab ? '#ffffff' : '#aaaaaa',
-              fontSize: '13px',
-              cursor: 'pointer',
-              fontWeight: pestana === tab ? 'bold' : 'normal'
-            }}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+          {['retiros', 'trades'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setPestana(tab)}
+              style={{
+                flex: 1,
+                padding: '8px',
+                background: pestana === tab ? '#5463FF' : '#1a1a1a',
+                border: pestana === tab ? 'none' : '1px solid #333',
+                borderRadius: '6px',
+                color: pestana === tab ? '#ffffff' : '#aaaaaa',
+                fontSize: '13px',
+                cursor: 'pointer',
+                fontWeight: pestana === tab ? 'bold' : 'normal'
+              }}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
 
-      {cargando && (
-        <p style={{ color: '#aaaaaa', fontSize: '13px', textAlign: 'center' }}>Cargando...</p>
-      )}
+        {cargando && (
+          <p style={{ color: '#aaaaaa', fontSize: '13px', textAlign: 'center', marginTop: '24px' }}>Cargando...</p>
+        )}
 
-      {error && (
-        <p style={{ color: '#ff4444', fontSize: '12px', textAlign: 'center' }}>{error}</p>
-      )}
+        {error && (
+          <p style={{ color: '#ff4444', fontSize: '12px', textAlign: 'center', marginTop: '16px' }}>{error}</p>
+        )}
 
-      {!cargando && !error && pestana === 'retiros' && (
-        <div>
-          {retirosSPEI.length === 0 ? (
-            <p style={{ color: '#aaaaaa', fontSize: '12px', textAlign: 'center', marginTop: '24px' }}>
-              Sin retiros SPEI registrados
-            </p>
-          ) : (
-            retirosSPEI.map((r, i) => (
-              <div key={r.wid || i} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ color: '#aaaaaa', fontSize: '11px' }}>{formatFecha(r.created_at)}</span>
-                  <span style={{ color: estadoColor(r.status), fontSize: '11px', fontWeight: 'bold' }}>
+        {!cargando && !error && pestana === 'retiros' && (
+          retirosSPEI.length === 0
+            ? <p style={{ color: '#aaaaaa', fontSize: '12px', textAlign: 'center', marginTop: '24px' }}>Sin retiros SPEI registrados</p>
+            : retirosSPEI.map((r, i) => (
+              <Card key={r.wid || i}>
+                <div className="row">
+                  <span className="label-sm">{formatFecha(r.created_at)}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: estadoColor(r.status) }}>
                     {r.status || '—'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#ffffff', fontSize: '15px', fontWeight: 'bold' }}>
+                <div className="row mt-8">
+                  <span style={{ color: 'var(--text-dark)', fontSize: '15px', fontWeight: 'bold' }}>
                     ${parseFloat(r.amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
                   </span>
                 </div>
                 {r.details?.clabe && (
-                  <p style={{ color: '#aaaaaa', fontSize: '10px', margin: '4px 0 0 0' }}>
-                    CLABE: {r.details.clabe}
-                  </p>
+                  <p className="label-sm" style={{ marginTop: '6px' }}>CLABE: {r.details.clabe}</p>
                 )}
-              </div>
+              </Card>
             ))
-          )}
-        </div>
-      )}
+        )}
 
-      {!cargando && !error && pestana === 'trades' && (
-        <div>
-          {trades.length === 0 ? (
-            <p style={{ color: '#aaaaaa', fontSize: '12px', textAlign: 'center', marginTop: '24px' }}>
-              Sin trades registrados
-            </p>
-          ) : (
-            trades.map((t, i) => {
+        {!cargando && !error && pestana === 'trades' && (
+          trades.length === 0
+            ? <p style={{ color: '#aaaaaa', fontSize: '12px', textAlign: 'center', marginTop: '24px' }}>Sin trades registrados</p>
+            : trades.map((t, i) => {
               const cripto = t.book ? t.book.replace('_mxn', '').toUpperCase() : '—'
-              const esMXN = t.book?.endsWith('_mxn')
-              const monto = esMXN ? parseFloat(t.minor || 0) : parseFloat(t.major || 0)
-              const montoMXN = esMXN ? Math.abs(parseFloat(t.minor || 0)) : Math.abs(parseFloat(t.minor || 0))
+              const montoMXN = Math.abs(parseFloat(t.minor || 0))
               const tipo = t.maker_side === 'sell' ? 'Compra' : 'Venta'
               return (
-                <div key={t.tid || i} style={{ background: '#1a1a1a', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ color: '#aaaaaa', fontSize: '11px' }}>{formatFecha(t.created_at)}</span>
-                    <span style={{
-                      color: tipo === 'Compra' ? '#e1ee2a' : '#5463FF',
-                      fontSize: '11px',
-                      fontWeight: 'bold'
-                    }}>
+                <Card key={t.tid || i}>
+                  <div className="row">
+                    <span className="label-sm">{formatFecha(t.created_at)}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: tipo === 'Compra' ? '#e1ee2a' : '#5463FF' }}>
                       {tipo}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#ffffff', fontSize: '14px', fontWeight: 'bold' }}>{cripto}</span>
-                    <span style={{ color: '#ffffff', fontSize: '14px' }}>
+                  <div className="row mt-8">
+                    <span style={{ color: 'var(--text-dark)', fontSize: '14px', fontWeight: 'bold' }}>{cripto}</span>
+                    <span style={{ color: 'var(--text-dark)', fontSize: '14px', fontWeight: '600' }}>
                       ${montoMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
                     </span>
                   </div>
                   {t.major && (
-                    <p style={{ color: '#aaaaaa', fontSize: '10px', margin: '4px 0 0 0' }}>
+                    <p className="label-sm" style={{ marginTop: '6px' }}>
                       {parseFloat(t.major).toFixed(6)} {cripto}
                     </p>
                   )}
-                </div>
+                </Card>
               )
             })
-          )}
-        </div>
-      )}
+        )}
+
+      </div>
     </div>
   )
 }
@@ -373,107 +346,102 @@ function Dashboard({ onLogout }) {
   const totalMXN = (saldoMXN ? parseFloat(saldoMXN.available) : 0) + valorCriptos
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ color: '#5463FF', margin: 0 }}>Bitso Adapter</h2>
-        <span style={{ fontSize: '11px', color: '#e1ee2a' }}>● Conectado</span>
-      </div>
+    <div className="app-root">
+      <Header showStatus />
+      <div className="screen">
 
-      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-        <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 4px 0' }}>Patrimonio total</p>
-        <p style={{ fontSize: '26px', fontWeight: 'bold', margin: '0 0 8px 0' }}>
-          ${totalMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Saldo MXN</span>
-          <span style={{ color: '#ffffff', fontSize: '12px' }}>
-            ${saldoMXN ? parseFloat(saldoMXN.available).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'}
-          </span>
-        </div>
-        {valorCriptos > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-            <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Valor en criptos</span>
-            <span style={{ color: '#ffffff', fontSize: '12px' }}>
-              ${valorCriptos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+        <Card>
+          <p className="balance-label">Patrimonio total</p>
+          <p className="balance-big">
+            ${totalMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            <span className="balance-unit">MXN</span>
+          </p>
+          <div className="row mt-8">
+            <span className="label-sm">Saldo MXN</span>
+            <span className="value-sm">
+              ${saldoMXN ? parseFloat(saldoMXN.available).toLocaleString('es-MX', { minimumFractionDigits: 2 }) : '0.00'}
             </span>
           </div>
-        )}
-      </div>
+          {valorCriptos > 0 && (
+            <div className="row mt-4">
+              <span className="label-sm">Valor en criptos</span>
+              <span className="value-sm">
+                ${valorCriptos.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
+        </Card>
 
-      {otrasMonedas.length > 0 && (
-        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 12px 0' }}>Criptomonedas</p>
-          {otrasMonedas
-            .map(b => ({ ...b, valorMXN: parseFloat(b.available) * (precios[b.currency] || 0) }))
-            .sort((a, b) => b.valorMXN - a.valorMXN)
-            .map(b => (
-              <div key={b.currency} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ color: '#ffffff', fontSize: '13px', textTransform: 'uppercase', width: '50px' }}>{b.currency}</span>
-                <span style={{ color: '#aaaaaa', fontSize: '12px', flex: 1, textAlign: 'center' }}>
-                  {parseFloat(b.available).toFixed(6)}
-                </span>
-                <div style={{ textAlign: 'right', width: '80px' }}>
-                  <span style={{ color: b.valorMXN >= 10 ? '#e1ee2a' : '#ff4444', fontSize: '12px' }}>
-                    {b.valorMXN > 0 ? `$${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
+        {otrasMonedas.length > 0 && (
+          <Card>
+            <p className="section-title mb-12">Criptomonedas</p>
+            {otrasMonedas
+              .map(b => ({ ...b, valorMXN: parseFloat(b.available) * (precios[b.currency] || 0) }))
+              .sort((a, b) => b.valorMXN - a.valorMXN)
+              .map(b => (
+                <div key={b.currency} className="row mb-8" style={{ alignItems: 'center' }}>
+                  <span className="crypto-ticker" style={{ width: '44px' }}>{b.currency}</span>
+                  <span className="label-sm" style={{ flex: 1, textAlign: 'center' }}>
+                    {parseFloat(b.available).toFixed(6)}
                   </span>
-                  {b.valorMXN > 0 && b.valorMXN < 10 && (
-                    <p style={{ color: '#ff4444', fontSize: '9px', margin: '1px 0 0 0' }}>
-                      mín. $10
-                    </p>
-                  )}
+                  <div style={{ textAlign: 'right', marginRight: '8px' }}>
+                    <span className={b.valorMXN >= 10 ? 'crypto-val-ok' : 'crypto-val-low'}>
+                      {b.valorMXN > 0 ? `$${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
+                    </span>
+                    {b.valorMXN > 0 && b.valorMXN < 10 && (
+                      <p className="crypto-val-label-low">min. $10</p>
+                    )}
+                  </div>
+                  <button
+                    className="btn-sell-inline"
+                    onClick={() => setMostrarVenta(b.currency)}
+                  >
+                    Vender
+                  </button>
                 </div>
-                <button
-                  onClick={() => setMostrarVenta(b.currency)}
-                  style={{
-                    marginLeft: '8px',
-                    padding: '4px 8px',
-                    background: '#1a1a2e',
-                    border: '1px solid #5463FF',
-                    borderRadius: '4px',
-                    color: '#5463FF',
-                    fontSize: '11px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Vender
-                </button>
-              </div>
-            ))
-          }
-        </div>
-      )}
+              ))
+            }
+          </Card>
+        )}
 
-      {balances.length === 0 && (
-        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: 0 }}>Sin saldo disponible</p>
-        </div>
-      )}
+        {balances.length === 0 && (
+          <Card>
+            <p className="label-sm">Sin saldo disponible</p>
+          </Card>
+        )}
 
-      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-        <p style={{ color: '#aaaaaa', fontSize: '12px', margin: '0 0 8px 0' }}>Esperando pago en Mercado Libre...</p>
-        <div style={{ width: '100%', height: '2px', background: '#333', borderRadius: '1px' }}>
-          <div style={{ width: '30%', height: '100%', background: '#5463FF', borderRadius: '1px' }}></div>
-        </div>
+        <Card>
+          <p className="label-sm mb-4">Esperando pago en Mercado Libre...</p>
+          <div className="waiting-bar">
+            <div className="waiting-bar-fill" />
+          </div>
+        </Card>
+
+        <Button
+          variant="secondary"
+          onClick={() => setMostrarHistorial(true)}
+        >
+          Historial
+        </Button>
+
+        <Button
+          variant="secondary"
+          onClick={() => chrome.storage.local.clear(() => onLogout())}
+        >
+          Cerrar sesion
+        </Button>
+
       </div>
-
-      <button
-        style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #5463FF', marginTop: '8px', color: '#5463FF' }}
-        onClick={() => setMostrarHistorial(true)}
-      >
-        Historial
-      </button>
-
-      <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333', marginTop: '8px' }} onClick={() => {
-        chrome.storage.local.clear(() => onLogout())
-      }}>
-        Cerrar sesión
-      </button>
     </div>
   )
 }
 
 function ResumenPago({ datos, balances, precios, onCancelar, onPagoExitoso }) {
   const [mostrarVenta, setMostrarVenta] = useState(false)
+  const [pinMode, setPinMode] = useState(false)
+  const [pinValue, setPinValue] = useState('')
+  const [pagoExitoso, setPagoExitoso] = useState(false)
+
   const validacion = validarDatosSPEI(datos)
   const montoRequerido = parseFloat(datos.monto)
 
@@ -489,6 +457,22 @@ function ResumenPago({ datos, balances, precios, onCancelar, onPagoExitoso }) {
   const alcanzaElSaldo = totalMXN >= montoRequerido
   const puedeConfirmar = validacion.valido && alcanzaElSaldo
 
+  if (pagoExitoso) {
+    return (
+      <div className="app-root">
+        <Header />
+        <div className="success-wrapper">
+          <div className="success-icon">✓</div>
+          <p className="success-title">Pago enviado</p>
+          <p className="success-subtitle">
+            Tu transferencia SPEI de ${montoRequerido.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN fue procesada.
+          </p>
+          <Button onClick={onPagoExitoso}>Volver al inicio</Button>
+        </div>
+      </div>
+    )
+  }
+
   if (mostrarVenta) {
     return <VenderCripto
       balances={balances}
@@ -500,81 +484,129 @@ function ResumenPago({ datos, balances, precios, onCancelar, onPagoExitoso }) {
     />
   }
 
+  if (pinMode) {
+    return (
+      <div className="app-root">
+        <Header subtitle="Confirma el pago SPEI" />
+        <StepIndicator steps={STEPS} current={2} />
+        <div className="screen">
+          <Card>
+            <div className="row">
+              <span className="label-sm">Monto a transferir</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-dark)' }}>
+                ${montoRequerido.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+              </span>
+            </div>
+            <div className="row mt-8">
+              <span className="label-sm">Beneficiario</span>
+              <span className="value-sm">{datos.beneficiario}</span>
+            </div>
+          </Card>
+          <InputField
+            label="PIN de confirmacion"
+            type="password"
+            placeholder="Ingresa tu PIN"
+            value={pinValue}
+            onChange={e => setPinValue(e.target.value)}
+          />
+          <Button
+            variant="success"
+            onClick={() => setPagoExitoso(true)}
+            disabled={!pinValue}
+          >
+            Confirmar pago
+          </Button>
+          <Button variant="secondary" onClick={() => setPinMode(false)}>
+            Regresar
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const clabeOculta = datos.clabe
+    ? `${'*'.repeat(Math.max(0, datos.clabe.length - 4))}${datos.clabe.slice(-4)}`
+    : '—'
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: '#5463FF', margin: 0, fontSize: '18px' }}>Pago detectado</h2>
-        <span style={{ fontSize: '11px', color: '#e1ee2a' }}>● ML</span>
-      </div>
+    <div className="app-root">
+      <Header subtitle="Transferencia detectada en Mercado Libre" />
+      <StepIndicator steps={STEPS} current={1} />
+      <div className="screen">
 
-      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
-        <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 4px 0' }}>Monto a pagar</p>
-        <p style={{ fontSize: '28px', fontWeight: 'bold', margin: '0', color: '#ffffff' }}>
-          ${montoRequerido.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-        </p>
-      </div>
-
-      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Beneficiario</span>
-          <span style={{ color: '#ffffff', fontSize: '12px' }}>{datos.beneficiario}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Banco</span>
-          <span style={{ color: '#ffffff', fontSize: '12px' }}>{datos.banco}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>CLABE</span>
-          <span style={{ color: '#ffffff', fontSize: '11px' }}>{datos.clabe}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Referencia</span>
-          <span style={{ color: '#ffffff', fontSize: '12px' }}>{datos.referencia}</span>
-        </div>
-      </div>
-
-      <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Saldo total disponible</span>
-          <span style={{ color: alcanzaElSaldo ? '#e1ee2a' : '#ff4444', fontSize: '12px', fontWeight: 'bold' }}>
-            ${totalMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-          </span>
-        </div>
-        {!alcanzaElSaldo && (
-          <p style={{ color: '#ff4444', fontSize: '11px', margin: '8px 0 0 0' }}>
-            Saldo insuficiente. Faltan ${(montoRequerido - totalMXN).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+        <Card>
+          <p className="balance-label">Monto a pagar</p>
+          <p className="amount-big">
+            ${montoRequerido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            <span className="balance-unit">MXN</span>
           </p>
+        </Card>
+
+        <Card>
+          <p className="section-title mb-12">Datos de transferencia</p>
+          <div className="row">
+            <span className="label-sm">Beneficiario</span>
+            <span className="value-sm">{datos.beneficiario}</span>
+          </div>
+          <div className="row mt-8">
+            <span className="label-sm">Banco</span>
+            <span className="value-sm">{datos.banco}</span>
+          </div>
+          <div className="row mt-8">
+            <span className="label-sm">CLABE</span>
+            <span className="value-sm-mono">{clabeOculta}</span>
+          </div>
+          <div className="row mt-8">
+            <span className="label-sm">Referencia</span>
+            <span className="value-sm">{datos.referencia}</span>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="row">
+            <span className="label-sm">Saldo total disponible</span>
+            <span style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: alcanzaElSaldo ? 'var(--text-dark)' : 'var(--error)'
+            }}>
+              ${totalMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+            </span>
+          </div>
+          {!alcanzaElSaldo && (
+            <p className="error-text mt-8">
+              Saldo insuficiente. Faltan ${(montoRequerido - totalMXN).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+            </p>
+          )}
+        </Card>
+
+        {!validacion.valido && (
+          <div className="error-block">
+            {validacion.errores.map((err, i) => (
+              <p key={i}>{err}</p>
+            ))}
+          </div>
         )}
-      </div>
 
-      {!validacion.valido && (
-        <div style={{ background: '#2a1a1a', borderRadius: '10px', padding: '12px', marginBottom: '12px', border: '1px solid #ff4444' }}>
-          {validacion.errores.map((err, i) => (
-            <p key={i} style={{ color: '#ff4444', fontSize: '12px', margin: '0 0 4px 0' }}>⚠️ {err}</p>
-          ))}
-        </div>
-      )}
+        {!alcanzaElSaldo && otrasCriptos.length > 0 && (
+          <Button variant="outline" onClick={() => setMostrarVenta(true)}>
+            Vender cripto para completar el pago
+          </Button>
+        )}
 
-      {!alcanzaElSaldo && otrasCriptos.length > 0 && (
-        <button
-          style={{ ...buttonStyle, marginBottom: '8px', background: '#1a1a2e', border: '1px solid #5463FF' }}
-          onClick={() => setMostrarVenta(true)}
+        <Button
+          variant="success"
+          disabled={!puedeConfirmar}
+          onClick={() => setPinMode(true)}
         >
-          Vender cripto para completar el pago
-        </button>
-      )}
+          Confirmar pago
+        </Button>
 
-      <button
-        style={{ ...buttonStyle, marginBottom: '8px', opacity: !puedeConfirmar ? 0.5 : 1 }}
-        onClick={() => {}}
-        disabled={!puedeConfirmar}
-      >
-        Confirmar pago
-      </button>
+        <Button variant="secondary" onClick={onCancelar}>
+          Cancelar
+        </Button>
 
-      <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333' }} onClick={onCancelar}>
-        Cancelar
-      </button>
+      </div>
     </div>
   )
 }
@@ -646,7 +678,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
       ? Math.min(montoFinal, criptoSeleccionada.valorMXN).toFixed(2)
       : montoObjetivo
         ? Math.min(parseFloat(montoObjetivo), criptoSeleccionada.valorMXN).toFixed(2)
-        : (criptoSeleccionada.valorMXN * 0.95).toFixed(2) 
+        : (criptoSeleccionada.valorMXN * 0.95).toFixed(2)
     : '0.00'
 
   const montoValido = parseFloat(montoAVender) >= 10
@@ -655,7 +687,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
     console.log('useEffect fees ejecutado, cripto:', criptoSeleccionada?.currency)
     if (!criptoSeleccionada) return
 
-    setFeeInfo(null) // limpiar fee anterior
+    setFeeInfo(null)
 
     chrome.storage.local.get(['apiKey', 'apiSecret'], (result) => {
       fetch(`${API_URL}/fees`, {
@@ -675,231 +707,165 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
 
   if (confirmar) {
     return (
-      <div>
-        <h2 style={{ color: '#5463FF', marginBottom: '24px', fontSize: '18px' }}>
-          Confirmar venta
-        </h2>
-
-        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '24px', marginBottom: '24px', textAlign: 'center' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '13px', margin: '0 0 12px 0' }}>¿Deseas vender</p>
-          <p style={{ color: '#e1ee2a', fontSize: '26px', fontWeight: 'bold', margin: '0 0 8px 0' }}>
-            ${parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-          </p>
-          <p style={{ color: '#aaaaaa', fontSize: '13px', margin: 0 }}>
-            de <span style={{ color: '#ffffff', fontWeight: 'bold', textTransform: 'uppercase' }}>{criptoSeleccionada.currency}</span>?
-          </p>
-          {feeInfo && (
-            <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '12px 0 0 0' }}>
-              Recibirás aproximadamente{' '}
-              <span style={{ color: '#e1ee2a' }}>
-                ${(parseFloat(montoAVender) * (1 - parseFloat(feeInfo.taker_fee_decimal))).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-              </span>
-              {' '}después del fee
+      <div className="app-root">
+        <Header subtitle="Confirmar venta" />
+        <div className="screen">
+          <Card>
+            <p className="balance-label mb-8" style={{ textAlign: 'center' }}>Vas a vender</p>
+            <p className="amount-big" style={{ textAlign: 'center' }}>
+              ${parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              <span className="balance-unit">MXN</span>
             </p>
-          )}
+            <p className="label-sm mt-8" style={{ textAlign: 'center' }}>
+              de{' '}
+              <strong style={{ textTransform: 'uppercase', color: 'var(--text-dark)' }}>
+                {criptoSeleccionada.currency}
+              </strong>
+            </p>
+            {feeInfo && (
+              <p className="label-sm mt-8" style={{ textAlign: 'center' }}>
+                Recibiras aprox.{' '}
+                <strong style={{ color: 'var(--text-dark)' }}>
+                  ${(parseFloat(montoAVender) * (1 - parseFloat(feeInfo.taker_fee_decimal))).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                </strong>{' '}
+                despues del fee
+              </p>
+            )}
+          </Card>
+
+          <Button loading={cargando} disabled={cargando} onClick={handleVender}>
+            {cargando ? 'Vendiendo...' : 'Si, vender'}
+          </Button>
+          <Button variant="secondary" onClick={() => setConfirmar(false)} disabled={cargando}>
+            Cancelar
+          </Button>
         </div>
-
-        <button
-          style={{ ...buttonStyle, marginBottom: '8px', opacity: cargando ? 0.7 : 1 }}
-          onClick={handleVender}
-          disabled={cargando}
-        >
-          {cargando ? 'Vendiendo...' : 'Sí, vender'}
-        </button>
-
-        <button
-          style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333' }}
-          onClick={() => setConfirmar(false)}
-          disabled={cargando}
-        >
-          Cancelar
-        </button>
       </div>
     )
   }
-  
+
+  const montoErrorPersonalizado = montoPersonalizado && parseFloat(montoPersonalizado) < 10
+    ? 'El monto minimo de venta es $10.00 MXN'
+    : montoPersonalizado && parseFloat(montoPersonalizado) > criptoSeleccionada?.valorMXN
+      ? `Maximo $${criptoSeleccionada?.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`
+      : undefined
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: '#5463FF', margin: 0, fontSize: '18px' }}>Vender cripto</h2>
-        {montoObjetivo && (
-          <span style={{ fontSize: '11px', color: '#e1ee2a' }}>
-            Necesitas: ${parseFloat(montoObjetivo).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-          </span>
+    <div className="app-root">
+      <Header
+        subtitle={montoObjetivo
+          ? `Necesitas $${parseFloat(montoObjetivo).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`
+          : 'Selecciona la cripto a vender'
+        }
+      />
+      <div className="screen">
+
+        {criptosOrdenadas.length === 0 ? (
+          <Card>
+            <p className="label-sm">Sin criptomonedas disponibles para vender</p>
+          </Card>
+        ) : (
+          <Card>
+            <p className="section-title mb-12">Selecciona cripto</p>
+            {criptosOrdenadas.map(b => (
+              <div
+                key={b.currency}
+                className={`crypto-list-item${criptoSeleccionada?.currency === b.currency ? ' selected' : ''}`}
+                onClick={() => setCriptoSeleccionada(b)}
+              >
+                <div>
+                  <p className="crypto-ticker">{b.currency}</p>
+                  <p className="crypto-qty">{parseFloat(b.available).toFixed(6)}</p>
+                </div>
+                <div>
+                  <p className={b.valorMXN >= 10 ? 'crypto-val-ok' : 'crypto-val-low'}>
+                    ${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className={b.valorMXN >= 10 ? 'crypto-val-label' : 'crypto-val-label-low'}>
+                    {b.valorMXN >= 10 ? 'MXN' : 'min. $10 MXN'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </Card>
         )}
-      </div>
 
-      {criptosOrdenadas.length === 0 ? (
-        <div style={{ background: '#1a1a1a', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '12px', margin: 0 }}>Sin criptomonedas disponibles para vender</p>
-        </div>
-      ) : (
-        <div style={{ marginBottom: '16px' }}>
-          <p style={{ color: '#aaaaaa', fontSize: '12px', marginBottom: '8px' }}>Selecciona qué cripto vender:</p>
-          {criptosOrdenadas.map(b => (
-            <div
-              key={b.currency}
-              onClick={() => setCriptoSeleccionada(b)}
-              style={{
-                background: criptoSeleccionada?.currency === b.currency ? '#1a1a2e' : '#1a1a1a',
-                border: criptoSeleccionada?.currency === b.currency ? '1px solid #5463FF' : '1px solid transparent',
-                borderRadius: '8px',
-                padding: '12px',
-                marginBottom: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
-            >
-              <div>
-                <span style={{ color: '#ffffff', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                  {b.currency}
-                </span>
-                <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '2px 0 0 0' }}>
-                  {parseFloat(b.available).toFixed(6)}
-                </p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ color: b.valorMXN >= 10 ? '#e1ee2a' : '#ff4444', fontSize: '13px', fontWeight: 'bold' }}>
-                  ${b.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                </span>
-                <p style={{ color: b.valorMXN >= 10 ? '#aaaaaa' : '#ff4444', fontSize: '11px', margin: '2px 0 0 0' }}>
-                  {b.valorMXN >= 10 ? 'MXN' : 'mín. $10 MXN'}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {criptoSeleccionada && (
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-            <input
-              type="checkbox"
-              id="montoPersonalizado"
-              checked={usarMontoPersonalizado}
-              onChange={e => setUsarMontoPersonalizado(e.target.checked)}
-              style={{ marginRight: '8px' }}
-            />
-            <label htmlFor="montoPersonalizado" style={{ color: '#aaaaaa', fontSize: '12px', cursor: 'pointer' }}>
-              Especificar monto a vender
-            </label>
-          </div>
-
-          {usarMontoPersonalizado && (
-            <div>
+        {criptoSeleccionada && (
+          <>
+            <div className="checkbox-row">
               <input
-                style={{ ...inputStyle, marginBottom: '4px' }}
+                type="checkbox"
+                id="montoPersonalizado"
+                checked={usarMontoPersonalizado}
+                onChange={e => setUsarMontoPersonalizado(e.target.checked)}
+              />
+              <label className="checkbox-label" htmlFor="montoPersonalizado">
+                Especificar monto a vender
+              </label>
+            </div>
+
+            {usarMontoPersonalizado && (
+              <InputField
                 type="number"
-                placeholder="Monto en MXN (mínimo $10.00)"
+                placeholder="Monto en MXN (minimo $10.00)"
                 value={montoPersonalizado}
                 onChange={e => setMontoPersonalizado(e.target.value)}
                 min="10"
                 max={criptoSeleccionada.valorMXN}
+                error={montoErrorPersonalizado}
               />
-              {montoPersonalizado && parseFloat(montoPersonalizado) < 10 && (
-                <p style={{ color: '#ff4444', fontSize: '11px', margin: '4px 0 0 0' }}>
-                  El monto mínimo de venta es $10.00 MXN
-                </p>
-              )}
-              {montoPersonalizado && parseFloat(montoPersonalizado) > criptoSeleccionada.valorMXN && (
-                <p style={{ color: '#ff4444', fontSize: '11px', margin: '4px 0 0 0' }}>
-                  No tienes suficiente {criptoSeleccionada.currency.toUpperCase()} — máximo ${criptoSeleccionada.valorMXN.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-                </p>
-              )}
-            </div>
-          )}
-
-          <div style={{ background: '#1a1a2e', borderRadius: '10px', padding: '12px', marginTop: '8px', border: '1px solid #5463FF' }}>
-            <p style={{ color: '#aaaaaa', fontSize: '11px', margin: '0 0 8px 0' }}>Resumen de venta</p>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Venderás</span>
-              <span style={{ color: '#ffffff', fontSize: '12px', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                {criptoSeleccionada.currency}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-              <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Monto bruto</span>
-              <span style={{ color: '#ffffff', fontSize: '12px' }}>
-                ${parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-              </span>
-            </div>
-
-            {feeInfo && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ color: '#aaaaaa', fontSize: '12px' }}>Fee ({feeInfo.taker_fee_percent}%)</span>
-                <span style={{ color: '#ff4444', fontSize: '12px' }}>
-                  -${(parseFloat(montoAVender) * parseFloat(feeInfo.taker_fee_decimal)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
-                </span>
-              </div>
             )}
 
-            <div style={{ borderTop: '1px solid #333', marginTop: '8px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#aaaaaa', fontSize: '12px', fontWeight: 'bold' }}>Recibirás</span>
-              <span style={{ color: '#e1ee2a', fontSize: '13px', fontWeight: 'bold' }}>
-                ${feeInfo
-                  ? (parseFloat(montoAVender) * (1 - parseFloat(feeInfo.taker_fee_decimal))).toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                  : parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })
-                } MXN
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+            <Card accent>
+              <p className="section-title mb-12">Resumen de venta</p>
+              <div className="row">
+                <span className="label-sm">Venderás</span>
+                <span className="crypto-ticker">{criptoSeleccionada.currency}</span>
+              </div>
+              <div className="row mt-8">
+                <span className="label-sm">Monto bruto</span>
+                <span className="value-sm">
+                  ${parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                </span>
+              </div>
+              {feeInfo && (
+                <div className="row mt-4">
+                  <span className="label-sm">Fee ({feeInfo.taker_fee_percent}%)</span>
+                  <span className="fee-debit">
+                    -${(parseFloat(montoAVender) * parseFloat(feeInfo.taker_fee_decimal)).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                  </span>
+                </div>
+              )}
+              <hr className="divider" />
+              <div className="row">
+                <span className="label-sm" style={{ fontWeight: 600 }}>Recibiras</span>
+                <span className="receive-amount">
+                  ${feeInfo
+                    ? (parseFloat(montoAVender) * (1 - parseFloat(feeInfo.taker_fee_decimal))).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+                    : parseFloat(montoAVender).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+                  } MXN
+                </span>
+              </div>
+            </Card>
+          </>
+        )}
 
-      {error && (
-        <p style={{ color: '#ff4444', fontSize: '12px', marginBottom: '12px' }}>{error}</p>
-      )}
+        {error && <p className="error-text">{error}</p>}
 
-      <button
-        style={{ ...buttonStyle, marginBottom: '8px', opacity: (!criptoSeleccionada || cargando || !montoValido) ? 0.5 : 1 }}
-        onClick={() => setConfirmar(true)}
-        disabled={!criptoSeleccionada || cargando || !montoValido}
-      >
-        Confirmar venta
-      </button>
+        <Button
+          disabled={!criptoSeleccionada || cargando || !montoValido}
+          onClick={() => setConfirmar(true)}
+        >
+          Revisar venta
+        </Button>
 
-      <button style={{ ...buttonStyle, background: '#1a1a1a', border: '1px solid #333' }} onClick={onCancelar}>
-        Cancelar
-      </button>
+        <Button variant="secondary" onClick={onCancelar}>
+          Cancelar
+        </Button>
+
+      </div>
     </div>
   )
-}
-
-const labelStyle = {
-  display: 'block',
-  fontSize: '12px',
-  color: '#aaaaaa',
-  marginBottom: '6px',
-  marginTop: '16px'
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '10px',
-  background: '#1a1a1a',
-  border: '1px solid #333',
-  borderRadius: '6px',
-  color: '#ffffff',
-  fontSize: '13px',
-  boxSizing: 'border-box'
-}
-
-const buttonStyle = {
-  width: '100%',
-  padding: '12px',
-  background: '#5463FF',
-  border: 'none',
-  borderRadius: '6px',
-  color: '#ffffff',
-  fontSize: '14px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-  marginTop: '24px'
 }
 
 export default App

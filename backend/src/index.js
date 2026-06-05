@@ -253,6 +253,56 @@ app.post('/fees', async (req, res) => {
   }
 })
 
+// Historial de trades del usuario
+app.post('/historial-trades', async (req, res) => {
+  const { apiKey, apiSecret } = req.body
+
+  if (!apiKey || !apiSecret) {
+    return res.status(400).json({ ok: false, error: 'Faltan credenciales' })
+  }
+
+  try {
+    const ruta = '/api/v3/user_trades/'
+    const headers = generarHeaders(apiKey, apiSecret, 'GET', ruta)
+    const response = await fetch(`${BITSO_STAGE_URL}/user_trades/`, { headers })
+    const data = await response.json()
+
+    if (data.success) {
+      res.json({ ok: true, trades: data.payload })
+    } else {
+      res.json({ ok: false, error: data.error?.message || 'Error al obtener trades' })
+    }
+  } catch (err) {
+    console.error('Error historial trades:', err.message)
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
+// Historial de retiros del usuario
+app.post('/historial-retiros', async (req, res) => {
+  const { apiKey, apiSecret } = req.body
+
+  if (!apiKey || !apiSecret) {
+    return res.status(400).json({ ok: false, error: 'Faltan credenciales' })
+  }
+
+  try {
+    const ruta = '/api/v3/withdrawals/'
+    const headers = generarHeaders(apiKey, apiSecret, 'GET', ruta)
+    const response = await fetch(`${BITSO_STAGE_URL}/withdrawals/`, { headers })
+    const data = await response.json()
+
+    if (data.success) {
+      res.json({ ok: true, retiros: data.payload })
+    } else {
+      res.json({ ok: false, error: data.error?.message || 'Error al obtener retiros' })
+    }
+  } catch (err) {
+    console.error('Error historial retiros:', err.message)
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 app.get('/version', (req, res) => {
   res.json({ version: 'major-fix', timestamp: Date.now() })
 })
