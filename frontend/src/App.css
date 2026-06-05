@@ -21,39 +21,42 @@
 }
 
 html {
-  background: transparent;
+  background: #e6e6e6;
 }
 
 body {
   font-family: 'Inter', 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  background: transparent;
+  background: #e6e6e6;
   color: var(--text-dark);
   width: 380px;
-  margin: 0;
-  padding: 0;
+  min-height: 500px;
+  padding: 7px;
+  box-sizing: border-box;
 }
 
 /* ─── App root ─── */
 .app-root {
-  width: 380px;
+  width: 100%;
+  min-height: calc(500px - 14px);
   background: var(--white);
   display: flex;
   flex-direction: column;
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.13);
 }
 
 /* ─── Loading ─── */
 .loading-screen {
-  width: 380px;
-  height: 320px;
+  width: 100%;
+  min-height: calc(500px - 14px);
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--white);
+  border-radius: 18px;
 }
 
 .loading-text {
