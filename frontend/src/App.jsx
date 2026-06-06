@@ -145,7 +145,7 @@ function Dashboard({ onLogout }) {
     const intervalo = setInterval(() => {
       refrescarBalances()
       obtenerPrecios()
-    }, 30000)
+    }, 5000)
 
     return () => clearInterval(intervalo)
   }, [])
@@ -422,7 +422,8 @@ function ResumenPago({ datos, balances, precios, onCancelar, onPagoExitoso }) {
       return total + parseFloat(b.available) * precio
     }, 0)
 
-  const alcanzaElSaldo = totalMXN >= montoRequerido
+  const saldoDisponibleMXN = saldoMXN ? parseFloat(saldoMXN.available) : 0
+  const alcanzaElSaldo = saldoDisponibleMXN >= montoRequerido
   const puedeConfirmar = validacion.valido && alcanzaElSaldo
 
   if (pagoExitoso) {
@@ -615,6 +616,16 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
 
     chrome.storage.local.get(['apiKey', 'apiSecret'], async (result) => {
       try {
+        console.log('Vendiendo:', {
+          usarMontoPersonalizado,
+          montoObjetivo,
+          cantidadCripto: (!usarMontoPersonalizado && !montoObjetivo) 
+            ? (parseFloat(criptoSeleccionada.available) * 0.985).toString() 
+            : undefined
+        })
+        const debeUsarCantidad = !usarMontoPersonalizado && 
+          (!montoObjetivo || parseFloat(criptoSeleccionada?.valorMXN) < parseFloat(montoObjetivo))
+
         const res = await fetch(`${API_URL}/vender-cripto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -623,7 +634,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
             apiSecret: result.apiSecret,
             cripto: criptoSeleccionada.currency,
             montoMXN: montoAVender,
-            ...(!usarMontoPersonalizado && !montoObjetivo
+            ...(debeUsarCantidad
               ? { cantidadCripto: (parseFloat(criptoSeleccionada.available) * 0.985).toString() }
               : {})
           })
@@ -709,7 +720,7 @@ function VenderCripto({ balances, precios, montoObjetivo, criptoPreseleccionada,
           </Card>
 
           <Button loading={cargando} disabled={cargando} onClick={handleVender}>
-            {cargando ? 'Vendiendo...' : 'Si, vender'}
+            {cargando ? 'Vendiendo...' : 'Aceptar'}
           </Button>
           <Button variant="secondary" onClick={() => setConfirmar(false)} disabled={cargando}>
             Cancelar
