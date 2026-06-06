@@ -78,7 +78,6 @@ function Login({ onLogin }) {
   return (
     <div className="app-root">
       <Header subtitle="Conecta tu cuenta para pagar en tiendas" />
-      <StepIndicator steps={STEPS} current={0} />
       <div className="screen">
         <InputField
           label="API Key"
@@ -260,13 +259,6 @@ function Dashboard({ onLogout }) {
             <p className="label-sm">Sin saldo disponible</p>
           </Card>
         )}
-
-        <Card>
-          <p className="label-sm mb-4">Esperando pago en Mercado Libre...</p>
-          <div className="waiting-bar">
-            <div className="waiting-bar-fill" />
-          </div>
-        </Card>
 
         <Button
           variant="secondary"

@@ -43,7 +43,6 @@ body {
   background: var(--white);
   display: flex;
   flex-direction: column;
-  border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.13);
 }
@@ -725,3 +724,33 @@ hr.divider {
 .mb-8  { margin-bottom: 8px; }
 .mb-12 { margin-bottom: 12px; }
 .mb-16 { margin-bottom: 16px; }
+
+/* Logo watermark */
+.header-logo-watermark {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 100px;
+  height: 100px;
+  opacity: 0.12;
+  transform: rotate(10deg);
+  pointer-events: none;
+}
+
+/* Header necesita position relative para el watermark */
+.header {
+  position: relative;
+  overflow: hidden;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+}
+
+.app-root {
+  padding-bottom: 0;
+  min-height: 100vh;
+}
