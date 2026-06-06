@@ -481,14 +481,21 @@ function ResumenPago({ datos, balances, precios, onCancelar, onPagoExitoso }) {
           <InputField
             label="PIN de confirmacion"
             type="password"
-            placeholder="Ingresa tu PIN"
+            placeholder="Ingresa tu PIN de 6 dígitos"
             value={pinValue}
-            onChange={e => setPinValue(e.target.value)}
+            onChange={e => {
+              const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+              setPinValue(val)
+            }}
           />
           <Button
             variant="success"
-            onClick={() => setPagoExitoso(true)}
-            disabled={!pinValue}
+            onClick={() => {
+              chrome.storage.local.remove(['speiData', 'speiPending'])
+              chrome.action.setBadgeText({ text: '' })
+              setPagoExitoso(true)
+            }}
+            disabled={pinValue.length !== 6}
           >
             Confirmar pago
           </Button>
